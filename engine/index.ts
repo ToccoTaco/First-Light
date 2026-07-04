@@ -2,5 +2,4 @@
 // Re-exports the §6.1 type contract. No implementation lives here yet.
 
 export * from "./types";
-
-// Phase 1 will add: export function computeSchedule(tasks: Task[], config: Config): ScheduleResult;
+export { computeSchedule } from "./compute-schedule";

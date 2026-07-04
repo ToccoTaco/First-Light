@@ -36,6 +36,13 @@ export interface ScheduleResult {
       latestFinish: ISODate;
       slack: number; // days this task can slip before it becomes critical
       critical: boolean; // slack === 0
+      // Approved contract extension (Phase 1): progress metadata carried through
+      // so the UI needn't re-read the input. Leaves echo their inputs; summaries
+      // carry rolled-up values. None of these ever affect the scheduling math.
+      status: Status;
+      percent: number;
+      confidence?: "firm" | "estimate" | "guess";
+      summary: boolean;
     }
   >;
   criticalPath: string[]; // ordered ids
