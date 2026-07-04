@@ -1,10 +1,23 @@
-// storage/index.ts — the data layer (Phase 2). Placeholder for now.
+// storage/index.ts — the public surface of the data layer (Phase 2A).
 //
-// Responsibilities when built:
-//   - YAML load / merge / serialize of project.yaml + subgroups/*.yaml into one graph
-//   - GitHub Contents-API commit client (write-back: "save" == one commit per squad file)
-//   - baseline + staleness readers, derived from git history (never from schema fields)
+// The load pipeline, in order:
+//   parse-file → validate → merge   (raw text ⇒ engine-safe ProjectData)
+//   serialize                       (surgical, comment-preserving file edits)
 //
-// Nothing here imports the engine's internals; it only produces Task[] + Config for it.
+// `mergeProject` is the ONE gate every caller uses to reach the engine: it is
+// the only supported way to turn data-file text into the Task[] + Config that
+// `computeSchedule` consumes. Nothing here imports the engine's internals — it
+// only produces the engine's input contract.
+//
+// Phase 2B adds a GitHub Contents-API client (write-back = one commit per squad
+// file) and git-history readers for baselines + staleness; it will export from
+// here too.
 
-export {};
+export * from "./types";
+export * from "./parse-file";
+export * from "./validate";
+export * from "./merge";
+export * from "./serialize";
+export * from "./github";
+export * from "./settings";
+export * from "./meta";

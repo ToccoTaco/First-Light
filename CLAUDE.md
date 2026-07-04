@@ -2,17 +2,17 @@
 
 Mission-timeline / Gantt tool for **Notre Dame Experimental Propulsion** (our first liquid rocket).
 
-**Full spec: `FABLE_BUILD_BRIEF.md` — read it before acting.** This file holds the standing rules that apply to *every* session and is loaded automatically as context. The rules below are locked. The Phase-0 section at the bottom has blanks that you (Fable) fill in *after* you make the architecture calls — do not guess them earlier.
+**Full spec: `FABLE_BUILD_BRIEF.md` — read it before acting.** This file holds the standing rules that apply to _every_ session and is loaded automatically as context. The rules below are locked. The Phase-0 section at the bottom has blanks that you (Fable) fill in _after_ you make the architecture calls — do not guess them earlier.
 
 ---
 
 ## Model routing — non-negotiable
 
-| Role | Model | Owns |
-|------|-------|------|
-| **Architect / Orchestrator / QA** | **Fable 5, high effort** (not xhigh/max) | Architecture, decomposition, subagent briefs, design taste, final QA. **Never writes feature code directly.** |
-| **Implementation** | **Opus subagents** | All feature code. One subagent per task with a precise, self-contained brief. Parallel where independent, sequential where dependent. |
-| **Bulk / token-hungry chores** | **Cheaper model** | Bulk codebase analysis, dependency audits, repetitive refactors, computer-use. Reports back. |
+| Role                              | Model                                    | Owns                                                                                                                                  |
+| --------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Architect / Orchestrator / QA** | **Fable 5, high effort** (not xhigh/max) | Architecture, decomposition, subagent briefs, design taste, final QA. **Never writes feature code directly.**                         |
+| **Implementation**                | **Opus subagents**                       | All feature code. One subagent per task with a precise, self-contained brief. Parallel where independent, sequential where dependent. |
+| **Bulk / token-hungry chores**    | **Cheaper model**                        | Bulk codebase analysis, dependency audits, repetitive refactors, computer-use. Reports back.                                          |
 
 You are the conductor. Decompose → brief → delegate → QA. If you catch yourself writing feature code, stop and delegate it.
 
@@ -28,7 +28,7 @@ You are the conductor. Decompose → brief → delegate → QA. If you catch you
 
 ## Architecture rules
 
-- **Build the brain, borrow the body.** Build the scheduling engine ourselves; use a free MIT-licensed library for chart *rendering* — do not build a renderer from scratch.
+- **Build the brain, borrow the body.** Build the scheduling engine ourselves; use a free MIT-licensed library for chart _rendering_ — do not build a renderer from scratch.
 - **Git is the backend.** Human-readable data files are the source of truth; "save" means "commit"; **baselines and staleness derive from git history, not from schema fields.**
 - **Three clean layers, one pure core:** `engine` (pure functions — no UI, no git, no storage) · `rendering/UI` · `storage`. Nothing about git or the DOM may leak into the engine. That purity is what makes it testable and the tool modifiable.
 
@@ -60,4 +60,4 @@ You are the conductor. Decompose → brief → delegate → QA. If you catch you
 - [x] **Write-back auth mechanism:** GitHub OAuth login + one ~30-line Cloudflare Worker (free tier) for the token exchange; saves = commits via GitHub REST Contents API from the browser (one squad file per save). Push access = edit rights. Fallback/dev mode: fine-grained PAT pasted into a settings field (localStorage).
 - [x] **Deploy target:** GitHub Pages via Actions — confirmed. Baselines = git tags (newest `baseline/*` wins); staleness + baseline data precomputed at deploy time, never live API calls from the viewer.
 
-*These calls are approved. This file is now the living operating manual for the build.*
+_These calls are approved. This file is now the living operating manual for the build._

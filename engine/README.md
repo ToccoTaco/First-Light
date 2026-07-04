@@ -7,14 +7,14 @@ graph in, computed dates / critical path / slack / conflicts out.
 
 ## Algorithm (`compute-schedule.ts`, Critical Path Method — brief §6.2)
 
-1. **Merge + sort.** Build one dependency graph over *leaf* tasks. Summaries never
+1. **Merge + sort.** Build one dependency graph over _leaf_ tasks. Summaries never
    schedule; an edge to/from a summary expands onto all of its leaves. Bad ids drop
    the edge and log a `missing-dependency`. Tarjan's SCC scan finds cycles — any
    cycle aborts with only `cycle` conflicts. Otherwise Kahn's algorithm gives a
    deterministic topological order.
 2. **Forward pass.** In order, compute earliest start/finish. FS tracks a pred's
    finish, SS its start (both with lag). Auto roots start at `today`; a pinned task's
-   start is *exactly* its pin, always.
+   start is _exactly_ its pin, always.
 3. **Anchor.** A met pin anchors itself (LS = LF = pin); otherwise true sinks anchor
    on the project's earliest finish (capability-driven default).
 4. **Backward pass.** In reverse, compute latest start/finish; `slack = LS − ES`;

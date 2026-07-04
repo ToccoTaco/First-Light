@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "meta": "node scripts/generate-meta.mjs",
     "test": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write ."

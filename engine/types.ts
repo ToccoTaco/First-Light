@@ -52,8 +52,18 @@ export interface ScheduleResult {
 
 export type Conflict =
   | { kind: "cycle"; tasks: string[] }
-  | { kind: "hard-deadline-miss"; task: string; deadline: ISODate; overrunDays: number }
-  | { kind: "pin-conflict"; task: string; pinnedStart: ISODate; earliestPossible: ISODate }
+  | {
+      kind: "hard-deadline-miss";
+      task: string;
+      deadline: ISODate;
+      overrunDays: number;
+    }
+  | {
+      kind: "pin-conflict";
+      task: string;
+      pinnedStart: ISODate;
+      earliestPossible: ISODate;
+    }
   | { kind: "missing-dependency"; task: string; missing: string };
 
 // Phase 1 will add: export function computeSchedule(tasks: Task[], config: Config): ScheduleResult;

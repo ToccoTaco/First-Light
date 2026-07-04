@@ -20,5 +20,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["ui", "storage", "dashboard"]
+  "include": ["ui", "storage", "dashboard", "engine"],
+  "exclude": ["**/*.test.ts"]
 }

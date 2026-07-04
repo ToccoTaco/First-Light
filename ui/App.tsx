@@ -10,12 +10,27 @@ const SQUADS = [
 
 export default function App() {
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "3rem auto", padding: "0 1rem" }}>
+    <main
+      style={{
+        fontFamily: "system-ui, sans-serif",
+        maxWidth: 720,
+        margin: "3rem auto",
+        padding: "0 1rem",
+      }}
+    >
       <h1>First Light — ND Experimental Propulsion</h1>
       <p>Phase 0 skeleton — engine arrives in Phase 1</p>
       <ul style={{ listStyle: "none", padding: 0 }}>
         {SQUADS.map((squad) => (
-          <li key={squad.id} style={{ display: "flex", alignItems: "center", gap: 10, margin: "0.4rem 0" }}>
+          <li
+            key={squad.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              margin: "0.4rem 0",
+            }}
+          >
             <span
               aria-hidden
               style={{

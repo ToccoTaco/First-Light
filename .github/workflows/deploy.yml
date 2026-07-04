@@ -20,11 +20,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history + tags are REQUIRED: generate-meta reads commit dates
+          # (staleness) and baseline/* tags. A shallow clone would blank both.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Bake git-derived baselines + staleness into generated/meta.json before
+      # the build copies it into dist/. Must run after checkout's full history.
+      - run: node scripts/generate-meta.mjs
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

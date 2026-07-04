@@ -89,10 +89,15 @@ export function computeSchedule(tasks: Task[], config: Config): ScheduleResult {
   for (const t of tasks) {
     for (const dep of t.dependsOn ?? []) {
       const depId = typeof dep === "string" ? dep : dep.task;
-      const type: EdgeType = typeof dep === "string" ? "FS" : (dep.type ?? "FS");
+      const type: EdgeType =
+        typeof dep === "string" ? "FS" : (dep.type ?? "FS");
       const lag = typeof dep === "string" ? 0 : (dep.lag ?? 0);
       if (!byId.has(depId)) {
-        missing.push({ kind: "missing-dependency", task: t.id, missing: depId });
+        missing.push({
+          kind: "missing-dependency",
+          task: t.id,
+          missing: depId,
+        });
         continue;
       }
       const preds = leavesOf(depId);
@@ -132,7 +137,8 @@ export function computeSchedule(tasks: Task[], config: Config): ScheduleResult {
     let pick: string | null = null;
     for (const id of leafIds) {
       if (placed.has(id) || (indeg.get(id) ?? 0) !== 0) continue;
-      if (pick === null || inputOrder.get(id)! < inputOrder.get(pick)!) pick = id;
+      if (pick === null || inputOrder.get(id)! < inputOrder.get(pick)!)
+        pick = id;
     }
     if (pick === null) break; // unreachable: cycles already handled above
     placed.add(pick);
@@ -153,7 +159,10 @@ export function computeSchedule(tasks: Task[], config: Config): ScheduleResult {
 
     let dur = 0;
     if (!milestone) {
-      dur = t.schedule.mode === "auto" ? t.schedule.duration : (t.schedule.duration ?? 0);
+      dur =
+        t.schedule.mode === "auto"
+          ? t.schedule.duration
+          : (t.schedule.duration ?? 0);
     }
 
     // Earliest start forced by predecessors: FS tracks a pred's finish, SS its
@@ -258,10 +267,17 @@ export function computeSchedule(tasks: Task[], config: Config): ScheduleResult {
       pwSum += w * p;
       pFlat += p;
     }
-    const percent = wSum > 0 ? pwSum / wSum : descendants.length ? pFlat / descendants.length : 0;
+    const percent =
+      wSum > 0
+        ? pwSum / wSum
+        : descendants.length
+          ? pFlat / descendants.length
+          : 0;
 
     // Status: any blocked wins; else all-done, else all-not-started, else mixed.
-    const statuses = descendants.map((l) => (byId.get(l)!.status ?? "not-started") as Status);
+    const statuses = descendants.map(
+      (l) => (byId.get(l)!.status ?? "not-started") as Status,
+    );
     let status: Status;
     if (statuses.some((s) => s === "blocked")) status = "blocked";
     else if (statuses.every((s) => s === "done")) status = "done";

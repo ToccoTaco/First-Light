@@ -1,0 +1,7 @@
+# The data files' canonical writer is storage/serialize.ts (comment-preserving
+# yaml Document API). Prettier must not fight it — "save = commit" only stays
+# reviewable if the only diffs in a squad file come from actual edits.
+data/
+generated/
+dist/
+package-lock.json

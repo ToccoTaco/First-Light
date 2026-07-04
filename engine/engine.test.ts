@@ -21,7 +21,11 @@ function dateShape(r: ReturnType<typeof computeSchedule>) {
       critical: t.critical,
     };
   }
-  return { tasks: out, criticalPath: r.criticalPath, projectFinish: r.projectFinish };
+  return {
+    tasks: out,
+    criticalPath: r.criticalPath,
+    projectFinish: r.projectFinish,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,8 +33,18 @@ describe("§6.3 engine acceptance suite", () => {
   it("TEST 1 — simple finish-to-start chain", () => {
     const tasks: Task[] = [
       { id: "A", name: "A", schedule: { mode: "auto", duration: 5 } },
-      { id: "B", name: "B", schedule: { mode: "auto", duration: 3 }, dependsOn: ["A"] },
-      { id: "C", name: "C", schedule: { mode: "auto", duration: 2 }, dependsOn: ["B"] },
+      {
+        id: "B",
+        name: "B",
+        schedule: { mode: "auto", duration: 3 },
+        dependsOn: ["A"],
+      },
+      {
+        id: "C",
+        name: "C",
+        schedule: { mode: "auto", duration: 2 },
+        dependsOn: ["B"],
+      },
     ];
     const r = computeSchedule(tasks, CONFIG);
 
@@ -53,8 +67,18 @@ describe("§6.3 engine acceptance suite", () => {
     // A→C directly, and A→B→C. C depends on both A and B.
     const tasks: Task[] = [
       { id: "A", name: "A", schedule: { mode: "auto", duration: 5 } },
-      { id: "B", name: "B", schedule: { mode: "auto", duration: 2 }, dependsOn: ["A"] },
-      { id: "C", name: "C", schedule: { mode: "auto", duration: 2 }, dependsOn: ["A", "B"] },
+      {
+        id: "B",
+        name: "B",
+        schedule: { mode: "auto", duration: 2 },
+        dependsOn: ["A"],
+      },
+      {
+        id: "C",
+        name: "C",
+        schedule: { mode: "auto", duration: 2 },
+        dependsOn: ["A", "B"],
+      },
     ];
     const r = computeSchedule(tasks, CONFIG);
 
@@ -74,7 +98,12 @@ describe("§6.3 engine acceptance suite", () => {
   it("TEST 3 — summary rollup", () => {
     const tasks: Task[] = [
       { id: "P", name: "Parent", schedule: { mode: "auto", duration: 0 } },
-      { id: "X", name: "X", parent: "P", schedule: { mode: "auto", duration: 4 } },
+      {
+        id: "X",
+        name: "X",
+        parent: "P",
+        schedule: { mode: "auto", duration: 4 },
+      },
       {
         id: "Y",
         name: "Y",
@@ -99,8 +128,18 @@ describe("§6.3 engine acceptance suite", () => {
     // A fans out to B and C; a gate fans them back in. Nothing pinned.
     const tasks: Task[] = [
       { id: "a", name: "a", schedule: { mode: "auto", duration: 5 } },
-      { id: "b", name: "b", schedule: { mode: "auto", duration: 3 }, dependsOn: ["a"] },
-      { id: "c", name: "c", schedule: { mode: "auto", duration: 4 }, dependsOn: ["a"] },
+      {
+        id: "b",
+        name: "b",
+        schedule: { mode: "auto", duration: 3 },
+        dependsOn: ["a"],
+      },
+      {
+        id: "c",
+        name: "c",
+        schedule: { mode: "auto", duration: 4 },
+        dependsOn: ["a"],
+      },
       {
         id: "g",
         name: "gate",
@@ -127,7 +166,12 @@ describe("§6.3 engine acceptance suite", () => {
     // Chain finishing Mar 10 feeds a gate pinned + hard to Mar 1.
     const tasks: Task[] = [
       { id: "c1", name: "c1", schedule: { mode: "auto", duration: 40 } }, // Jan1→Feb10
-      { id: "c2", name: "c2", schedule: { mode: "auto", duration: 28 }, dependsOn: ["c1"] }, // →Mar10
+      {
+        id: "c2",
+        name: "c2",
+        schedule: { mode: "auto", duration: 28 },
+        dependsOn: ["c1"],
+      }, // →Mar10
       {
         id: "gate",
         name: "gate",
@@ -141,7 +185,12 @@ describe("§6.3 engine acceptance suite", () => {
     const r = computeSchedule(tasks, CONFIG);
 
     expect(r.conflicts).toEqual([
-      { kind: "hard-deadline-miss", task: "gate", deadline: "2026-03-01", overrunDays: 9 },
+      {
+        kind: "hard-deadline-miss",
+        task: "gate",
+        deadline: "2026-03-01",
+        overrunDays: 9,
+      },
     ]);
     // Dates NOT silently altered: the pin stays exactly where it was set.
     expect(r.tasks.gate.earliestStart).toBe("2026-03-01");
@@ -151,8 +200,18 @@ describe("§6.3 engine acceptance suite", () => {
 
   it("TEST 6 — dependency cycle", () => {
     const tasks: Task[] = [
-      { id: "A", name: "A", schedule: { mode: "auto", duration: 3 }, dependsOn: ["B"] },
-      { id: "B", name: "B", schedule: { mode: "auto", duration: 3 }, dependsOn: ["A"] },
+      {
+        id: "A",
+        name: "A",
+        schedule: { mode: "auto", duration: 3 },
+        dependsOn: ["B"],
+      },
+      {
+        id: "B",
+        name: "B",
+        schedule: { mode: "auto", duration: 3 },
+        dependsOn: ["A"],
+      },
     ];
     const r = computeSchedule(tasks, CONFIG);
 
@@ -211,10 +270,26 @@ describe("§6.3 engine acceptance suite", () => {
 
   it("TEST 9 — gate with mixed feeders", () => {
     const tasks: Task[] = [
-      { id: "eng.prelim", name: "eng", schedule: { mode: "auto", duration: 10 } },
-      { id: "flu.prelim", name: "flu", schedule: { mode: "auto", duration: 14 } },
-      { id: "str.prelim", name: "str", schedule: { mode: "auto", duration: 7 } },
-      { id: "avi.prelim", name: "avi", schedule: { mode: "auto", duration: 12 } },
+      {
+        id: "eng.prelim",
+        name: "eng",
+        schedule: { mode: "auto", duration: 10 },
+      },
+      {
+        id: "flu.prelim",
+        name: "flu",
+        schedule: { mode: "auto", duration: 14 },
+      },
+      {
+        id: "str.prelim",
+        name: "str",
+        schedule: { mode: "auto", duration: 7 },
+      },
+      {
+        id: "avi.prelim",
+        name: "avi",
+        schedule: { mode: "auto", duration: 12 },
+      },
       {
         id: "review.pdr",
         name: "PDR",
@@ -268,8 +343,18 @@ describe("§6.3 engine acceptance suite", () => {
   it("TEST 11 — status / percent / confidence are pass-through", () => {
     const base: Task[] = [
       { id: "A", name: "A", schedule: { mode: "auto", duration: 5 } },
-      { id: "B", name: "B", schedule: { mode: "auto", duration: 3 }, dependsOn: ["A"] },
-      { id: "C", name: "C", schedule: { mode: "auto", duration: 2 }, dependsOn: ["B"] },
+      {
+        id: "B",
+        name: "B",
+        schedule: { mode: "auto", duration: 3 },
+        dependsOn: ["A"],
+      },
+      {
+        id: "C",
+        name: "C",
+        schedule: { mode: "auto", duration: 2 },
+        dependsOn: ["B"],
+      },
     ];
     const decorated: Task[] = [
       { id: "A", name: "A", schedule: { mode: "auto", duration: 5 } },
@@ -282,7 +367,12 @@ describe("§6.3 engine acceptance suite", () => {
         percent: 40,
         confidence: "guess",
       },
-      { id: "C", name: "C", schedule: { mode: "auto", duration: 2 }, dependsOn: ["B"] },
+      {
+        id: "C",
+        name: "C",
+        schedule: { mode: "auto", duration: 2 },
+        dependsOn: ["B"],
+      },
     ];
     const plain = computeSchedule(base, CONFIG);
     const r = computeSchedule(decorated, CONFIG);
@@ -351,10 +441,30 @@ describe("engine — extra edge cases", () => {
 
   it("multiple independent cycles are each reported", () => {
     const tasks: Task[] = [
-      { id: "A", name: "A", schedule: { mode: "auto", duration: 1 }, dependsOn: ["B"] },
-      { id: "B", name: "B", schedule: { mode: "auto", duration: 1 }, dependsOn: ["A"] },
-      { id: "C", name: "C", schedule: { mode: "auto", duration: 1 }, dependsOn: ["D"] },
-      { id: "D", name: "D", schedule: { mode: "auto", duration: 1 }, dependsOn: ["C"] },
+      {
+        id: "A",
+        name: "A",
+        schedule: { mode: "auto", duration: 1 },
+        dependsOn: ["B"],
+      },
+      {
+        id: "B",
+        name: "B",
+        schedule: { mode: "auto", duration: 1 },
+        dependsOn: ["A"],
+      },
+      {
+        id: "C",
+        name: "C",
+        schedule: { mode: "auto", duration: 1 },
+        dependsOn: ["D"],
+      },
+      {
+        id: "D",
+        name: "D",
+        schedule: { mode: "auto", duration: 1 },
+        dependsOn: ["C"],
+      },
     ];
     const r = computeSchedule(tasks, CONFIG);
     expect(r.conflicts).toEqual([
@@ -382,9 +492,24 @@ describe("engine — extra edge cases", () => {
     // D depends on summary S, whose latest leaf finishes Jan 8 → D starts Jan 8.
     const tasks: Task[] = [
       { id: "S", name: "S", schedule: { mode: "auto", duration: 0 } },
-      { id: "S.a", name: "Sa", parent: "S", schedule: { mode: "auto", duration: 4 } },
-      { id: "S.b", name: "Sb", parent: "S", schedule: { mode: "auto", duration: 7 } },
-      { id: "D", name: "D", schedule: { mode: "auto", duration: 2 }, dependsOn: ["S"] },
+      {
+        id: "S.a",
+        name: "Sa",
+        parent: "S",
+        schedule: { mode: "auto", duration: 4 },
+      },
+      {
+        id: "S.b",
+        name: "Sb",
+        parent: "S",
+        schedule: { mode: "auto", duration: 7 },
+      },
+      {
+        id: "D",
+        name: "D",
+        schedule: { mode: "auto", duration: 2 },
+        dependsOn: ["S"],
+      },
     ];
     const r = computeSchedule(tasks, CONFIG);
     expect(r.tasks["S.b"].earliestFinish).toBe("2026-01-08");
@@ -395,7 +520,12 @@ describe("engine — extra edge cases", () => {
   it("does not mutate its input tasks", () => {
     const tasks: Task[] = [
       { id: "A", name: "A", schedule: { mode: "auto", duration: 5 } },
-      { id: "B", name: "B", schedule: { mode: "auto", duration: 3 }, dependsOn: ["A"] },
+      {
+        id: "B",
+        name: "B",
+        schedule: { mode: "auto", duration: 3 },
+        dependsOn: ["A"],
+      },
     ];
     const snapshot = JSON.stringify(tasks);
     computeSchedule(tasks, CONFIG);
