@@ -1,0 +1,36 @@
+# Owned by the Structures squad lead. Edit via the UI once it exists; ids are namespaced structures.*
+# Coarse rolling-wave chain — all auto, all guesses. Cross-file ids (review.*) are intentional.
+tasks:
+  - id: structures.prelim-design
+    name: "Preliminary design"
+    schedule: { mode: auto, duration: 21 }
+    status: not-started
+    confidence: guess
+
+  - id: structures.detailed-design
+    name: "Detailed design"
+    schedule: { mode: auto, duration: 28 }
+    dependsOn: [review.pdr]
+    status: not-started
+    confidence: guess
+
+  - id: structures.airframe-fab
+    name: "Airframe fabrication"
+    schedule: { mode: auto, duration: 35 }
+    dependsOn: [review.mrr]
+    status: not-started
+    confidence: guess
+
+  - id: structures.tank-integration
+    name: "Tank integration"
+    schedule: { mode: auto, duration: 14 }
+    dependsOn: [structures.airframe-fab]
+    status: not-started
+    confidence: guess
+
+  - id: structures.airframe-ready
+    name: "Airframe ready"
+    schedule: { mode: auto, duration: 7 }
+    dependsOn: [structures.tank-integration]
+    status: not-started
+    confidence: guess

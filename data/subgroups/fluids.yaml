@@ -1,0 +1,36 @@
+# Owned by the Fluids squad lead. Edit via the UI once it exists; ids are namespaced fluids.*
+# Coarse rolling-wave chain — all auto, all guesses. Cross-file ids (review.*) are intentional.
+tasks:
+  - id: fluids.prelim-design
+    name: "Preliminary design"
+    schedule: { mode: auto, duration: 21 }
+    status: not-started
+    confidence: guess
+
+  - id: fluids.detailed-design
+    name: "Detailed design"
+    schedule: { mode: auto, duration: 28 }
+    dependsOn: [review.pdr]
+    status: not-started
+    confidence: guess
+
+  - id: fluids.feed-system-fab
+    name: "Feed system fabrication"
+    schedule: { mode: auto, duration: 28 }
+    dependsOn: [review.mrr]
+    status: not-started
+    confidence: guess
+
+  - id: fluids.feed-ready
+    name: "Feed system ready"
+    schedule: { mode: auto, duration: 7 }
+    dependsOn: [fluids.feed-system-fab]
+    status: not-started
+    confidence: guess
+
+  - id: fluids.pressurization-ready
+    name: "Pressurization system ready"
+    schedule: { mode: auto, duration: 14 }
+    dependsOn: [fluids.feed-ready]
+    status: not-started
+    confidence: guess

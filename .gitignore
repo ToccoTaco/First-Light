@@ -1,0 +1,20 @@
+# dependencies
+node_modules
+
+# build output
+dist
+generated/
+
+# build-time metadata caches
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+
+# editor / OS junk
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.local

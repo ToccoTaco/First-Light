@@ -1,0 +1,29 @@
+# Owned by the Avionics squad lead. Edit via the UI once it exists; ids are namespaced avionics.*
+# Coarse rolling-wave chain — all auto, all guesses. Cross-file ids (review.*) are intentional.
+tasks:
+  - id: avionics.prelim-design
+    name: "Preliminary design"
+    schedule: { mode: auto, duration: 21 }
+    status: not-started
+    confidence: guess
+
+  - id: avionics.detailed-design
+    name: "Detailed design"
+    schedule: { mode: auto, duration: 28 }
+    dependsOn: [review.pdr]
+    status: not-started
+    confidence: guess
+
+  - id: avionics.flight-computer-fab
+    name: "Flight computer fabrication"
+    schedule: { mode: auto, duration: 28 }
+    dependsOn: [review.mrr]
+    status: not-started
+    confidence: guess
+
+  - id: avionics.flight-computer-ready
+    name: "Flight computer ready"
+    schedule: { mode: auto, duration: 14 }
+    dependsOn: [avionics.flight-computer-fab]
+    status: not-started
+    confidence: guess

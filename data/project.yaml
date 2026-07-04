@@ -1,0 +1,80 @@
+# project.yaml — the team lead owns this file: squads, the top-level spine, config.
+# Coarse on purpose (rolling-wave planning): every task is unpinned/auto and a guess.
+project: "ND Experimental Propulsion — First Liquid Rocket"
+team: "Notre Dame Experimental Propulsion"
+mode: capability-driven # forward to readiness, not back from a comp date
+schedule:
+  calendar: calendar-days # people work any day — no working-day skips
+  today: auto # engine schedules relative to the current date
+
+squads:
+  - { id: engines, name: Engines, color: "#D85A30" } # injector, chamber, ignition
+  - { id: fluids, name: Fluids, color: "#378ADD" } # feed, tanks, pressurization
+  - { id: structures, name: Structures, color: "#1D9E75" } # airframe + all rocket structure
+  - { id: avionics, name: Avionics, color: "#7F77DD" } # flight computer, sensing, control
+
+# The top-level spine: design reviews + test gates (§7). Unpinned for now — they
+# float on dependencies until we commit to real dates.
+reviews:
+  - id: review.pdr
+    name: "Preliminary Design Review (PDR)"
+    milestone: true
+    gate: review
+    dependsOn:
+      [
+        engines.prelim-design,
+        fluids.prelim-design,
+        structures.prelim-design,
+        avionics.prelim-design,
+      ]
+
+  - id: review.cdr
+    name: "Critical Design Review (CDR)"
+    milestone: true
+    gate: review
+    dependsOn:
+      [
+        review.pdr,
+        engines.detailed-design,
+        fluids.detailed-design,
+        structures.detailed-design,
+        avionics.detailed-design,
+      ]
+
+  - id: review.mrr
+    name: "Manufacturing Readiness Review (MRR)"
+    milestone: true
+    gate: review
+    dependsOn: [review.cdr]
+
+  - id: review.hfr
+    name: "Hot-Fire Readiness Review (HFR)"
+    milestone: true
+    gate: review
+    dependsOn: [engines.chamber-ready, fluids.feed-ready, fluids.pressurization-ready]
+
+  - id: review.frr
+    name: "Flight Readiness Review (FRR)"
+    milestone: true
+    gate: review
+    dependsOn:
+      [gate.integrated-static-fire, structures.airframe-ready, avionics.flight-computer-ready]
+
+gates:
+  - id: gate.engine-hotfire
+    name: "First engine hotfire"
+    milestone: true
+    gate: test
+    dependsOn: [review.hfr]
+
+  - id: gate.integrated-static-fire
+    name: "Integrated static fire"
+    milestone: true
+    gate: test
+    dependsOn: [gate.engine-hotfire, structures.tank-integration]
+
+  - id: gate.first-flight
+    name: "First flight"
+    milestone: true
+    gate: test
+    dependsOn: [review.frr]
