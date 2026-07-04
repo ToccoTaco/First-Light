@@ -1,0 +1,235 @@
+/* ui/app.css — the app shell around the chart: header, toolbar, banner, states.
+ * The chart's own look lives in gantt-theme.css; this file is only the chrome. */
+
+:root {
+  --fl-surface: #fcfcfb;
+  --fl-text: #1f2328;
+  --fl-text-secondary: #57606a;
+  --fl-text-muted: #8b949e;
+  --fl-critical: #b3261e;
+  --fl-progress: #1f6feb;
+  --fl-hairline: #eaeef2;
+  --fl-group-tint: #f6f8fa;
+  --fl-grid-border: #d0d7de;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--fl-surface);
+  color: var(--fl-text);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+
+/* Full-height flex column: header + toolbar + banner are fixed, chart flexes. */
+.fl-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ── header ────────────────────────────────────────────────────────────────── */
+.fl-header {
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid var(--fl-hairline);
+}
+.fl-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.fl-header .fl-sub {
+  color: var(--fl-text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* ── toolbar ───────────────────────────────────────────────────────────────── */
+.fl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--fl-hairline);
+}
+
+/* segmented zoom control */
+.fl-seg {
+  display: inline-flex;
+  border: 1px solid var(--fl-grid-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.fl-seg button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--fl-text-secondary);
+  font-size: 13px;
+  padding: 5px 14px;
+  cursor: pointer;
+  border-right: 1px solid var(--fl-grid-border);
+}
+.fl-seg button:last-child {
+  border-right: none;
+}
+.fl-seg button[aria-pressed="true"] {
+  background: var(--fl-text);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* legend */
+.fl-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--fl-text-secondary);
+}
+.fl-legend .fl-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.fl-leg-chip {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.fl-leg-crit {
+  width: 16px;
+  height: 11px;
+  border-radius: 3px;
+  border: 2px solid var(--fl-critical);
+  display: inline-block;
+}
+.fl-leg-guess {
+  width: 16px;
+  height: 11px;
+  border-radius: 3px;
+  display: inline-block;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.55) 0,
+      rgba(255, 255, 255, 0.55) 3px,
+      transparent 3px,
+      transparent 6px
+    ),
+    var(--fl-text-muted);
+}
+.fl-leg-glyph {
+  font-size: 13px;
+  color: var(--fl-text);
+}
+
+/* ── banner ────────────────────────────────────────────────────────────────── */
+.fl-banner {
+  border-bottom: 1px solid var(--fl-hairline);
+  background: #fff8f6;
+  font-size: 13px;
+}
+.fl-banner.fl-banner-warn {
+  background: #fffdf3;
+}
+.fl-banner-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  cursor: pointer;
+  color: var(--fl-text);
+  user-select: none;
+}
+.fl-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fl-critical);
+  flex: 0 0 auto;
+}
+.fl-banner.fl-banner-warn .fl-banner-dot {
+  background: #bf8700;
+}
+.fl-banner-toggle {
+  margin-left: auto;
+  color: var(--fl-progress);
+  font-weight: 600;
+}
+.fl-banner-list {
+  margin: 0;
+  padding: 4px 20px 12px 40px;
+  color: var(--fl-text-secondary);
+  list-style: none;
+}
+.fl-banner-list li {
+  padding: 3px 0;
+}
+.fl-banner-list li::before {
+  content: "•";
+  color: var(--fl-text-muted);
+  margin-right: 8px;
+}
+.fl-issue-error b {
+  color: var(--fl-critical);
+}
+.fl-issue-warning b {
+  color: #bf8700;
+}
+
+/* ── chart area ────────────────────────────────────────────────────────────── */
+.fl-chart {
+  flex: 1 1 auto;
+  min-height: 0; /* let the DHTMLX container own the scroll, not the page */
+  position: relative;
+}
+.fl-chart-inner {
+  position: absolute;
+  inset: 0;
+}
+
+/* ── states: loading / error / empty ───────────────────────────────────────── */
+.fl-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--fl-text-secondary);
+  padding: 40px;
+  text-align: center;
+}
+.fl-state h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--fl-text);
+}
+.fl-state .fl-card {
+  max-width: 460px;
+  border: 1px solid var(--fl-grid-border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  background: #fff;
+}
+.fl-state code {
+  background: var(--fl-group-tint);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+}

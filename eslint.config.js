@@ -14,6 +14,34 @@ export default tseslint.config(
     },
   },
   {
+    // DHTMLX is isolated behind ui/gantt-adapter.ts so the renderer stays
+    // swappable (CLAUDE.md architecture call). No other file may import it —
+    // enforced here since there's no other mechanical guard. The adapter itself
+    // is exempted by the block right after this one.
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "dhtmlx-gantt",
+              message:
+                "Import DHTMLX only from ui/gantt-adapter.ts — the renderer must stay isolated behind the adapter so it's swappable.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["dhtmlx-gantt", "dhtmlx-gantt/*"],
+              message:
+                "Import DHTMLX only from ui/gantt-adapter.ts — the renderer must stay isolated behind the adapter so it's swappable.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Engine purity (§3): the pure core imports NOTHING external, ever — no packages,
     // and nothing from the ui / storage / dashboard / scripts layers. Test files are
     // exempt so they may import vitest.
@@ -46,6 +74,13 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+  {
+    // The one sanctioned home for the DHTMLX import (see the restriction above).
+    files: ["ui/gantt-adapter.ts"],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
   prettier,
