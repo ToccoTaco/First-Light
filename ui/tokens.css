@@ -54,16 +54,72 @@
   /* §5 nebula — the two-corner cloud recipe + gold-dust whisper, kept as a token
    * so the literal rgba values live in this (the only literal-bearing) file. The
    * page canvas paints this behind SOLID surface panels, so it only shows in the
-   * gutters/margins and never behind text. Peaks at/below ~0.16 per §5. */
+   * gutters/margins and never behind text.
+   *
+   * NOTE — peaks below EXCEED §5's ~0.16 guardrail by explicit user direction
+   * (2026-07-05: "make the nebula effect a bit more pronounced, I can't really
+   * tell it's there"). Bumped 0.14/0.16/0.05 → 0.20/0.22/0.07 so the gutters read
+   * as nebula on a normal monitor, not just in pixel math. Still §5 in spirit:
+   * felt in the margins, clouds pushed to corners, never behind text (panels stay
+   * solid surface on top). */
   --nebula: radial-gradient(
       60% 50% at 12% 8%,
-      rgba(83, 74, 183, 0.14),
+      rgba(83, 74, 183, 0.2),
       transparent 60%
     ),
     /* violet cloud, upper-left */
-    radial-gradient(55% 45% at 88% 92%, rgba(28, 79, 143, 0.16), transparent 60%),
+    radial-gradient(55% 45% at 88% 92%, rgba(28, 79, 143, 0.22), transparent 60%),
     /* blue cloud, lower-right */
-    radial-gradient(45% 40% at 72% 22%, rgba(201, 151, 0, 0.05), transparent 55%); /* gold dust, whisper */
+    radial-gradient(45% 40% at 72% 22%, rgba(201, 151, 0, 0.07), transparent 55%); /* gold dust, whisper */
+
+  /* §5 flourish — the TITLE-BLOCK showcase (dark mode). By user direction
+   * (2026-07-05) the header holds only title/subtitle/toggle — "no real
+   * information there and can be stylized more … a nebula effect with stars and
+   * such." So the header gets ITS OWN richer nebula, stronger than the canvas,
+   * composed for a wide short band: violet/blue/gold clouds pushed to the corners
+   * and empty center-right (peaks ~0.25–0.32), with the LEFT edge left calm so
+   * "First Light" + subtitle keep full contrast (see the left-edge fade wired in
+   * app.css). These peaks deliberately exceed §5's ~0.16 guardrail — this panel
+   * is the sanctioned showcase, the CHART stays quiet. */
+  --nebula-header: radial-gradient(
+      70% 150% at 34% 0%,
+      rgba(83, 74, 183, 0.3),
+      transparent 72%
+    ),
+    /* violet cloud, upper — off the far-left title */
+    radial-gradient(60% 160% at 84% 100%, rgba(28, 79, 143, 0.32), transparent 72%),
+    /* blue cloud, lower-right */
+    radial-gradient(48% 150% at 60% 26%, rgba(201, 151, 0, 0.16), transparent 68%); /* gold dust, richer than canvas but still atmosphere */
+
+  /* §5 flourish — the SPARSE starfield for the header band (dark mode only).
+   * ~a dozen 1px white dots at 20–35% opacity + three brighter 1.5–2px stars,
+   * each with a faint soft glow, scattered organically (px positions, not a
+   * grid) and kept toward the empty center/right so they never crowd the title.
+   * Pure layered radial-gradients — NO canvas element, NO deps, NO motion (there
+   * is deliberately no animation, so prefers-reduced-motion needs no handling).
+   * background-repeat:no-repeat is set on the element so each dot paints once. */
+  --starfield:
+    /* three brighter stars (sharp core) */
+    radial-gradient(1.6px 1.6px at 618px 24px, rgba(255, 255, 255, 0.72), transparent 60%),
+    radial-gradient(1.6px 1.6px at 1082px 44px, rgba(255, 255, 255, 0.68), transparent 60%),
+    radial-gradient(1.5px 1.5px at 884px 19px, rgba(255, 255, 255, 0.6), transparent 60%),
+    /* their faint soft glow (larger, dim) */
+    radial-gradient(4px 4px at 618px 24px, rgba(255, 255, 255, 0.18), transparent 70%),
+    radial-gradient(4px 4px at 1082px 44px, rgba(255, 255, 255, 0.16), transparent 70%),
+    radial-gradient(3.5px 3.5px at 884px 19px, rgba(255, 255, 255, 0.14), transparent 70%),
+    /* ~a dozen dim 1px dots */
+    radial-gradient(1px 1px at 232px 15px, rgba(255, 255, 255, 0.3), transparent 60%),
+    radial-gradient(1px 1px at 352px 41px, rgba(255, 255, 255, 0.26), transparent 60%),
+    radial-gradient(1px 1px at 470px 22px, rgba(255, 255, 255, 0.32), transparent 60%),
+    radial-gradient(1px 1px at 566px 50px, rgba(255, 255, 255, 0.24), transparent 60%),
+    radial-gradient(1px 1px at 706px 12px, rgba(255, 255, 255, 0.3), transparent 60%),
+    radial-gradient(1px 1px at 792px 34px, rgba(255, 255, 255, 0.22), transparent 60%),
+    radial-gradient(1px 1px at 946px 47px, rgba(255, 255, 255, 0.28), transparent 60%),
+    radial-gradient(1px 1px at 1024px 17px, rgba(255, 255, 255, 0.32), transparent 60%),
+    radial-gradient(1px 1px at 1168px 39px, rgba(255, 255, 255, 0.24), transparent 60%),
+    radial-gradient(1px 1px at 1268px 27px, rgba(255, 255, 255, 0.3), transparent 60%),
+    radial-gradient(1px 1px at 1392px 50px, rgba(255, 255, 255, 0.22), transparent 60%),
+    radial-gradient(1px 1px at 1476px 16px, rgba(255, 255, 255, 0.28), transparent 60%);
   /* Non-palette helpers — mode-independent so they read on any squad hue.
    * They live here (the only literal-bearing file) rather than in a component. */
   --bar-shade: rgba(0, 0, 0, 0.26); /* hue-preserving darkener: bar edge, progress, card shadow */
@@ -111,6 +167,9 @@
   /* §5 nebula, light mode: the nebula stands down. Of §5's two sanctioned
    * options (absent, or a ~0.03 cool wash) we take the QUIETER one — absent.
    * `none` keeps the canvas clean and honest ("don't force a nebula onto
-   * white; honesty over consistency"). */
+   * white; honesty over consistency"). The header showcase stands down the same
+   * way — daytime is clear, so no header nebula and no starfield on white. */
   --nebula: none;
+  --nebula-header: none;
+  --starfield: none;
 }

@@ -83,12 +83,38 @@ body {
 }
 
 /* ── header ────────────────────────────────────────────────────────────────── */
+/* The title block is the deliberate SHOWCASE (user direction 2026-07-05): unlike
+ * every other panel — which stays solid so the nebula only shows in the gutters —
+ * the header carries its OWN richer nebula + a sparse starfield, painted on a
+ * ::before layer that sits between the solid --surface and the content. The
+ * chart and the rest of the shell stay quiet; only this one panel is atmospheric. */
 .fl-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   padding: 12px 18px;
+  position: relative;
+  overflow: hidden; /* clip the nebula/stars to the panel's rounded corners */
+  isolation: isolate; /* keep the ::before stacking local to the header */
+}
+/* Header nebula + starfield (dark only; both tokens resolve to `none` in light,
+ * so this layer paints nothing there). A left-edge fade to solid --surface keeps
+ * the clouds off "First Light" + the subtitle so title contrast stays full. */
+.fl-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--starfield), var(--nebula-header),
+    linear-gradient(90deg, var(--surface) 0%, transparent 22%);
+  background-repeat: no-repeat; /* each star/cloud paints once, not tiled */
+}
+/* Lift the actual content above the atmosphere layer. */
+.fl-header > * {
+  position: relative;
+  z-index: 1;
 }
 .fl-header h1 {
   margin: 0;
