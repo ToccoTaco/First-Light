@@ -39,6 +39,14 @@
    * They live here (the only literal-bearing file) rather than in a component. */
   --bar-shade: rgba(0, 0, 0, 0.26); /* hue-preserving darkener: bar edge, progress, card shadow */
   --text-on-accent: #f4f6fa; /* near-white text/glyph on a saturated fill (today pill), both modes */
+
+  /* §3 Typography — two families, mode-independent (defined once on :root, so
+   * light mode inherits them too). Inter is used only when locally installed;
+   * otherwise the system's closest geometric sans / mono per §3. No webfont
+   * files, no CDN — the fallbacks carry the look on machines without Inter. */
+  --font-ui: "Inter", system-ui, "Segoe UI", sans-serif; /* interface text */
+  --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas,
+    monospace; /* telemetry: dates, numbers, ids, console labels */
 }
 
 /* ── LIGHT (daytime / projector / print) ───────────────────────────────────── */

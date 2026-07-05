@@ -67,6 +67,32 @@ export interface ChartModel {
    * an empty chart that would lie about the world (§ "never blank the schedule").
    */
   hasSchedule: boolean;
+  /**
+   * The id of the NEXT upcoming gate (kind gate-review / gate-test) — the first
+   * whose date is on or after `config.today`, ties broken by input order. Null
+   * when there are no gates or every gate is in the past. The renderer turns this
+   * into the one allowed `--gold-glow` halo (DESIGN_DIRECTION §4).
+   */
+  nextGateId: string | null;
+}
+
+/**
+ * The next upcoming gate: earliest gate date on or after `today`; ties broken by
+ * input order (the order gates appear in `gates`). Returns null when there are no
+ * gates or all gates are already in the past. Pure — the one piece of "which gate
+ * is next" logic, unit-tested here rather than eyeballed in the adapter.
+ */
+export function nextGateId(
+  gates: { id: string; dateISO: ISODate }[],
+  today: ISODate,
+): string | null {
+  let best: { id: string; dateISO: ISODate } | null = null;
+  for (const g of gates) {
+    if (g.dateISO < today) continue; // strictly past → skip; == today qualifies
+    // Earliest wins; on a tie keep the earlier input-order entry (best already set).
+    if (best === null || g.dateISO < best.dateISO) best = g;
+  }
+  return best ? best.id : null;
 }
 
 /**
@@ -93,7 +119,7 @@ export function buildChartModel(
   // shows the banner instead of an empty chart. (§6.2 step 1 / test-6.)
   const scheduledIds = Object.keys(schedule.tasks);
   if (scheduledIds.length === 0 && project.tasks.length > 0) {
-    return { rows: [], links: [], markers, hasSchedule: false };
+    return { rows: [], links: [], markers, hasSchedule: false, nextGateId: null };
   }
 
   const tasks = project.tasks;
@@ -270,7 +296,16 @@ export function buildChartModel(
     }
   }
 
-  return { rows, links, markers, hasSchedule: true };
+  // Next gate: gates in INPUT order (spineTasks preserves file order) paired with
+  // their scheduled start, resolved against today. Computed here so the adapter
+  // only maps a class, never decides which gate is next.
+  const gateDates = spineTasks.map((t) => ({
+    id: t.id,
+    dateISO: sched[t.id].earliestStart,
+  }));
+  const nextGate = nextGateId(gateDates, project.config.today);
+
+  return { rows, links, markers, hasSchedule: true, nextGateId: nextGate };
 
   // ── local helpers that close over the maps above ────────────────────────────
 

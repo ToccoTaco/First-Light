@@ -4,7 +4,7 @@ import { computeSchedule } from "../engine";
 import type { Task, Config, ScheduleResult } from "../engine/types";
 import { mergeProject, type SourceFile } from "../storage/merge";
 import type { ProjectData, Squad } from "../storage/types";
-import { buildChartModel, NEUTRAL_COLOR } from "./chart-model";
+import { buildChartModel, nextGateId, NEUTRAL_COLOR } from "./chart-model";
 
 // buildChartModel is pure, so every test here is: assemble a ProjectData, run
 // the real engine over it, and assert the resulting ChartModel. The DHTMLX
@@ -272,6 +272,61 @@ describe("group-id collision safety", () => {
     )!;
     expect(enginesGroup.id).not.toBe("group:engines");
     expect(model.rows.some((r) => r.id === "group:engines")).toBe(true);
+  });
+});
+
+// ── next gate (§4 the one gold glow) ──────────────────────────────────────────
+
+describe("nextGateId", () => {
+  it("picks the earliest gate on or after today (normal case)", () => {
+    const gates = [
+      { id: "g.past", dateISO: "2026-01-01" },
+      { id: "g.soon", dateISO: "2026-03-01" },
+      { id: "g.later", dateISO: "2026-06-01" },
+    ];
+    expect(nextGateId(gates, "2026-02-01")).toBe("g.soon");
+  });
+
+  it("breaks ties on the same date by input order", () => {
+    const gates = [
+      { id: "g.first", dateISO: "2026-03-01" },
+      { id: "g.second", dateISO: "2026-03-01" },
+    ];
+    expect(nextGateId(gates, "2026-02-01")).toBe("g.first");
+  });
+
+  it("returns null when every gate is already in the past", () => {
+    const gates = [
+      { id: "g.a", dateISO: "2026-01-01" },
+      { id: "g.b", dateISO: "2026-01-15" },
+    ];
+    expect(nextGateId(gates, "2026-06-01")).toBeNull();
+  });
+
+  it("returns null when there are no gates at all", () => {
+    expect(nextGateId([], "2026-06-01")).toBeNull();
+  });
+
+  it("counts a gate whose date is exactly today as the next gate", () => {
+    const gates = [
+      { id: "g.today", dateISO: "2026-02-01" },
+      { id: "g.later", dateISO: "2026-05-01" },
+    ];
+    expect(nextGateId(gates, "2026-02-01")).toBe("g.today");
+  });
+
+  it("is exposed on the ChartModel built from real data", () => {
+    // Real repo data with today = 2026-07-04: whichever gate the engine places
+    // first on/after today must be a real spine gate id, or null if all past.
+    const p = realProject();
+    const schedule = computeSchedule(p.tasks, p.config);
+    const model = buildChartModel(p, schedule);
+    const gateIds = model.rows
+      .filter((r) => r.kind === "gate-review" || r.kind === "gate-test")
+      .map((r) => r.id);
+    if (model.nextGateId !== null) {
+      expect(gateIds).toContain(model.nextGateId);
+    }
   });
 });
 

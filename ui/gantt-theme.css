@@ -34,20 +34,25 @@
 .gantt_ver_scroll {
   background-color: var(--surface);
 }
+/* The vertical-scroll placeholder that sits in the scale-header corner ships a
+ * light-blue gradient + inset white box-shadow in the stock skin — the residual
+ * bright sliver in dark mode. Flatten it onto --surface. */
+.gantt_task_vscroll {
+  background: var(--surface);
+  background-image: none;
+  box-shadow: none;
+}
 
 .gantt_container,
 .gantt_task,
 .gantt_grid {
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-ui); /* §3 interface family */
   color: var(--text-primary);
   border: none;
 }
 
-/* Scale rows (the date headers) — token text + hairline rules. */
+/* Scale rows (the date headers) — token text + hairline rules. The date/week
+ * labels are telemetry, so the cells render in mono (§3: "Wk 27", months, days). */
 .gantt_grid_scale,
 .gantt_task_scale,
 .gantt_scale_line,
@@ -55,6 +60,10 @@
   color: var(--text-secondary);
   font-weight: 500;
   border-color: var(--border-hair);
+}
+.gantt_task_scale .gantt_scale_cell {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
 }
 .gantt_grid_scale,
 .gantt_task_scale {
@@ -94,7 +103,7 @@
   background-color: var(--surface-raised);
 }
 
-/* ── bars (leaf tasks) — squad colour arrives via task.color ───────────────── */
+/* ── bars (leaf tasks) — §7: the FILL encodes STATE, not squad identity ──────── */
 
 .gantt_task_line {
   border-radius: 4px;
@@ -104,7 +113,7 @@
   margin-top: 1px; /* 2px breathing room between rows */
 }
 .gantt_task_line .gantt_task_progress {
-  /* Progress = a darker inner overlay of the same hue. */
+  /* Progress = a darker inner overlay, unchanged (§7 progress %). */
   background-color: var(--bar-shade);
   border-radius: 3px 0 0 3px;
   opacity: 1;
@@ -113,6 +122,62 @@
   color: var(--text-on-accent);
   font-size: 11px;
   line-height: 22px;
+}
+
+/* State fills for leaf-task bars. Precedence is expressed by SOURCE ORDER at
+ * equal specificity (done last so it beats critical; critical after the plain
+ * states so gold beats blue/faint/blocked-fill) — mirrors the §7 note that
+ * "critical wins the fill" EXCEPT for done, which recedes even when critical.
+ *
+ *   not-started ▸ in-progress ▸ blocked ▸ critical(gold) ▸ done(receded)
+ */
+
+/* not-started — the chart's quiet resting state: faint, hairline-outlined. */
+.gantt_task_line.fl-bar.fl-st-not-started {
+  background: transparent;
+  border: 1px solid var(--border-hair);
+}
+/* in-progress — the live blue. */
+.gantt_task_line.fl-bar.fl-st-in-progress {
+  background: var(--bar-active);
+  border: 1px solid var(--bar-shade);
+}
+/* blocked — trouble made visible: tinted fill + blocked-fg border (dot below). */
+.gantt_task_line.fl-bar.fl-st-blocked {
+  background: var(--blocked-bg);
+  border: 1px solid var(--blocked-fg);
+}
+/* A small blocked-fg dot glyph sits at the bar's left edge (§7). z-index keeps
+ * it above the guess hatch (::after) when a task is both blocked and a guess. */
+.gantt_task_line.fl-bar.fl-st-blocked::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--blocked-fg);
+  z-index: 3;
+  pointer-events: none;
+}
+/* critical — the gold thread. Beats blue / faint / blocked FILL (source order). */
+.gantt_task_line.fl-bar.fl-critical {
+  background: var(--gold);
+  border: 1px solid var(--bar-shade);
+}
+/* blocked AND critical — thread stays gold, the trouble still shows as a
+ * blocked-fg 2px border + the dot above (the quieter option, both signals kept).
+ * Higher specificity than the critical rule, so only the border is re-asserted. */
+.gantt_task_line.fl-bar.fl-critical.fl-st-blocked {
+  border: 2px solid var(--blocked-fg);
+}
+/* done — history, not signal: recedes even when critical (source order wins). */
+.gantt_task_line.fl-bar.fl-st-done {
+  background: var(--text-secondary);
+  border: 1px solid var(--bar-shade);
+  opacity: 0.5;
 }
 
 /* ── summaries: thin neutral bracket, NOT squad-coloured ───────────────────── */
@@ -129,7 +194,7 @@
   background: var(--bar-shade);
 }
 
-/* ── group header rows: no bar, tinted row, bold label ─────────────────────── */
+/* ── group header rows: no bar, tinted row, console label ──────────────────── */
 
 .gantt_task_line.fl-hide-bar {
   display: none !important; /* group rows never draw a bar */
@@ -138,9 +203,15 @@
 .gantt_task_row.fl-group-row {
   background: var(--surface-raised) !important;
 }
+/* §4 console labels — the "one per region" use. Small-caps mono, wide tracking,
+ * secondary ink; the squad chip (set inline in the grid template) rides along. */
 .fl-group-row .gantt_tree_content {
-  font-weight: 700;
-  color: var(--text-primary);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 /* ── milestones + gates (diamonds) ─────────────────────────────────────────── */
@@ -149,47 +220,46 @@
   border: 1px solid var(--bar-shade);
   box-shadow: none;
 }
-/* Squad milestone: filled diamond in the squad colour (task.color drives fill). */
 
-/* Gate glyphs are neutral ink; review = outlined (surface fill), test = filled.
- * (Gold gate treatment is §7 — arrives in a later slice; kept ink here.) */
+/* §7 gates are GOLD diamonds — both kinds read gold, kept distinguishable:
+ * review = gold outline with a --surface centre, test = solid gold. */
 .gantt_task_line.gantt_milestone.fl-gate-review {
   background: var(--surface) !important;
-  border: 2px solid var(--text-primary) !important;
+  border: 2px solid var(--gold) !important;
 }
 .gantt_task_line.gantt_milestone.fl-gate-test {
-  background: var(--text-primary) !important;
+  background: var(--gold) !important;
+  border: 2px solid var(--gold) !important;
+}
+/* Non-gate milestone → smaller outline diamond in primary ink (§7). */
+.gantt_task_line.gantt_milestone.fl-milestone {
+  background: transparent !important;
   border: 2px solid var(--text-primary) !important;
+  transform: scale(0.8);
+}
+/* §4 the ONE allowed glow: the next upcoming gate gets a faint gold-glow halo,
+ * DARK MODE ONLY (light mode stays clear per §2/§5). */
+:root[data-mode="dark"] .gantt_task_line.gantt_milestone.fl-next-gate {
+  box-shadow: 0 0 7px 2px var(--gold-glow);
 }
 
 /* Direct-label gate/milestone names to the right, in primary ink. */
 .gantt_task_line .gantt_side_content.gantt_right {
   color: var(--text-primary);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   padding-left: 10px;
 }
 
-/* ── critical path: 2px gold outline on the entity; fill unchanged ─────────── */
-/* Gold's scarcity rule is already respected — gold appears ONLY here this slice. */
-
-.gantt_task_line.fl-critical {
-  outline: 2px solid var(--gold);
-  outline-offset: 0;
-}
-/* Diamonds are rotated, so an outline would rotate oddly — use a gold border. */
-.gantt_task_line.gantt_milestone.fl-critical {
-  outline: none;
-  border-color: var(--gold) !important;
-  border-width: 2px !important;
-}
-
-/* Links: critical endpoints → gold; everything else → quiet dim telemetry. */
+/* ── links: critical endpoints → gold thread; everything else → quiet hairline ─ */
+/* Gold now lives in FILLS (bars + gates); the only remaining gold LINE is the
+ * critical-path link, so the thread reads end-to-end. Non-critical links recede
+ * to a hairline so they never compete (§8). */
 .gantt_task_link .gantt_line_wrapper div {
-  background-color: var(--text-telemetry);
+  background-color: var(--border-hair);
 }
 .gantt_task_link .gantt_link_arrow {
-  border-color: var(--text-telemetry);
+  border-color: var(--border-hair);
 }
 .gantt_task_link.fl-link-critical .gantt_line_wrapper div {
   background-color: var(--gold);
@@ -198,17 +268,19 @@
   border-color: var(--gold);
 }
 
-/* ── confidence texture (our approved secondary encoding) ──────────────────── */
+/* ── confidence texture: guess → hatch OVERLAY over whichever STATE fill ─────── */
 
-/* guess → 45° hatch overlay. Semi-transparent so the squad hue still reads
- * through it this slice (bars stay squad-coloured until §7). */
+/* A 45° hatch layered via ::after at partial opacity, so the underlying state
+ * fill (gold / blue / faint / receded / blocked) stays identifiable through it
+ * (§7). Kept below the blocked dot (::before, z-index:3). */
 .gantt_task_line.fl-conf-guess::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: 3px;
   pointer-events: none;
-  opacity: 0.55;
+  z-index: 1;
+  opacity: 0.45;
   background-image: repeating-linear-gradient(
     45deg,
     var(--hatch-a) 0,
@@ -224,31 +296,11 @@
 }
 /* firm / unset → solid (default, no rule needed). */
 
-/* ── done: faded bar + a check lives in the grid status cell ───────────────── */
-
-.gantt_task_line.fl-done {
-  opacity: 0.55;
-}
-
-/* ── blocked chip at the bar's right edge (rendered via rightside_text) ────── */
-
-.fl-blocked-chip {
-  display: inline-block;
-  background: var(--blocked-bg);
-  color: var(--blocked-fg);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-  padding: 3px 5px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
 /* ── grid (left pane) ──────────────────────────────────────────────────────── */
 
 .gantt_grid_head_cell {
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 12px;
 }
 .gantt_tree_content,
@@ -281,12 +333,14 @@
 }
 .fl-status-blocked {
   color: var(--blocked-fg);
-  font-weight: 600;
+  font-weight: 500;
 }
 .fl-status-done {
   color: var(--text-secondary);
 }
+/* Finish is a date → telemetry mono (§3). */
 .fl-finish-cell {
+  font-family: var(--font-mono);
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -308,8 +362,10 @@
   left: 0;
   transform: translateX(-50%);
   white-space: nowrap;
+  /* Marker labels are date readouts ("Projected finish Oct 18") → mono (§3). */
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 3px;
   padding: 1px 6px;
 }
@@ -345,15 +401,26 @@
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-ui);
 }
 .gantt_tooltip .fl-tt-title {
   color: var(--text-primary);
-  font-weight: 700;
+  font-weight: 500;
   font-size: 13px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+}
+/* The id is a readout → mono telemetry ink, sitting under the title (§3). */
+.gantt_tooltip .fl-tt-id {
+  font-family: var(--font-mono);
+  color: var(--text-telemetry);
+  font-size: 11px;
+  margin-bottom: 5px;
 }
 .gantt_tooltip .fl-tt-row b {
   color: var(--text-primary);
-  font-weight: 600;
+  font-weight: 500;
+}
+/* Dates / durations / slack / progress inside tooltip rows → mono telemetry. */
+.gantt_tooltip .fl-tt-tel {
+  font-family: var(--font-mono);
 }

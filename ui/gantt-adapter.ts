@@ -70,6 +70,7 @@ interface FLFields {
   fl_status: ChartRow["status"];
   fl_percent: number;
   fl_confidence?: string;
+  fl_nextGate: boolean; // true on the single upcoming gate → the gold-glow halo
 }
 
 /** Read our fields off a DHTMLX task (dates on the task are Dates at this point). */
@@ -93,7 +94,7 @@ export function createGanttView(container: HTMLElement): GanttView {
   gantt.config.row_height = 28;
   gantt.config.bar_height = 22;
   gantt.config.scale_height = 46;
-  gantt.config.grid_width = 434; // 260 + 90 + 84
+  gantt.config.grid_width = 460; // 260 + 112 + 88
   gantt.config.grid_resize = true;
 
   const shortDate = gantt.date.date_to_str("%M %j"); // e.g. "Jul 25"
@@ -119,7 +120,8 @@ export function createGanttView(container: HTMLElement): GanttView {
     {
       name: "status",
       label: "Status",
-      width: 90,
+      // Wide enough for "○ Not started" / "◑ In progress" untruncated (§3 type).
+      width: 112,
       align: "left",
       template: (task: DHXTask) => {
         const f = flOf(task);
@@ -129,7 +131,8 @@ export function createGanttView(container: HTMLElement): GanttView {
     {
       name: "finish",
       label: "Finish",
-      width: 84,
+      // Mono dates ("Sep 26") run a touch wider than the old sans — 88 clears it.
+      width: 88,
       align: "left",
       template: (task: DHXTask) => {
         const f = flOf(task);
@@ -144,15 +147,24 @@ export function createGanttView(container: HTMLElement): GanttView {
   ];
 
   // ── state → CSS class (never inline styles for state) ───────────────────────
+  // §7 semantics: leaf-task bar FILL encodes STATE, not squad identity. The theme
+  // resolves precedence (done ⊐ critical ⊐ blocked ⊐ in-progress ⊐ not-started)
+  // via source order; here we just tag every state present. Squad identity now
+  // lives only in the grid chip, so no `color` rides on the bar (see toGanttTask).
   gantt.templates.task_class = (_s: Date, _e: Date, task: DHXTask) => {
     const f = flOf(task);
     const c: string[] = [];
     if (f.fl_kind === "group") c.push("fl-hide-bar");
     if (f.fl_kind === "summary") c.push("fl-summary");
+    if (f.fl_kind === "milestone") c.push("fl-milestone");
     if (f.fl_kind === "gate-review") c.push("fl-gate-review");
     if (f.fl_kind === "gate-test") c.push("fl-gate-test");
-    if (f.fl_critical) c.push("fl-critical");
-    if (f.fl_status === "done") c.push("fl-done");
+    if (f.fl_nextGate) c.push("fl-next-gate");
+    // Leaf-task state fill (§7). Diamonds/summaries/groups carry their own look.
+    if (f.fl_kind === "task") {
+      c.push("fl-bar", `fl-st-${f.fl_status}`);
+      if (f.fl_critical) c.push("fl-critical");
+    }
     if (f.fl_confidence === "guess") c.push("fl-conf-guess");
     else if (f.fl_confidence === "estimate") c.push("fl-conf-estimate");
     return c.join(" ");
@@ -162,16 +174,13 @@ export function createGanttView(container: HTMLElement): GanttView {
   gantt.templates.task_row_class = (_s: Date, _e: Date, task: DHXTask) =>
     flOf(task).fl_kind === "group" ? "fl-group-row" : "";
 
-  // Bars stay clean; names live in the grid. Gates get a direct label; blocked
-  // rows get a chip — both via the right-side content.
+  // Bars stay clean; names live in the grid. Gates/milestones get a direct label.
+  // Blocked is now shown by the bar's own fill + dot glyph and the grid status
+  // cell — no extra right-side chip (§8 quieter option).
   gantt.templates.task_text = () => "";
   gantt.templates.rightside_text = (_s: Date, _e: Date, task: DHXTask) => {
     const f = flOf(task);
-    const parts: string[] = [];
-    if (isDiamond(f.fl_kind)) parts.push(escapeHTML(f.fl_name));
-    if (f.fl_status === "blocked")
-      parts.push(`<span class="fl-blocked-chip">⚠ Blocked</span>`);
-    return parts.join(" ");
+    return isDiamond(f.fl_kind) ? escapeHTML(f.fl_name) : "";
   };
 
   gantt.templates.link_class = (link: DHXLink) =>
@@ -191,29 +200,42 @@ export function createGanttView(container: HTMLElement): GanttView {
     const out: string[] = [
       `<div class="fl-tt-title">${escapeHTML(f.fl_name)}</div>`,
     ];
+    // The id reads as a readout, so it goes in mono telemetry ink (§3). Group
+    // rows carry synthetic ids ("group:…"), so we skip the line for them.
+    if (f.fl_kind !== "group")
+      out.push(`<div class="fl-tt-id">${escapeHTML(String(task.id))}</div>`);
     const line = (label: string, value: string) =>
       `<div class="fl-tt-row">${label}: <b>${value}</b></div>`;
+    // Telemetry wrap — dates, durations, slack, progress render in mono (§3).
+    const tel = (value: string) => `<span class="fl-tt-tel">${value}</span>`;
     if (f.fl_kind === "group") {
-      out.push(line("Rows span", `${shortDate(start)} → ${shortDate(lastDay)}`));
+      out.push(
+        line("Rows span", tel(`${shortDate(start)} → ${shortDate(lastDay)}`)),
+      );
       return out.join("");
     }
     if (diamond) {
-      out.push(line("Target", shortDate(start)));
+      out.push(line("Target", tel(shortDate(start))));
     } else {
-      out.push(line("Dates", `${shortDate(start)} → ${shortDate(lastDay)}`));
       out.push(
-        line("Duration", `${durationDays} day${durationDays === 1 ? "" : "s"}`),
+        line("Dates", tel(`${shortDate(start)} → ${shortDate(lastDay)}`)),
+      );
+      out.push(
+        line(
+          "Duration",
+          tel(`${durationDays} day${durationDays === 1 ? "" : "s"}`),
+        ),
       );
     }
     out.push(line("Status", statusWord(f.fl_status)));
     if (f.fl_percent > 0)
-      out.push(line("Progress", `${Math.round(f.fl_percent)}%`));
+      out.push(line("Progress", tel(`${Math.round(f.fl_percent)}%`)));
     out.push(
       line(
         "Slack",
         f.fl_critical
-          ? "0 days (on the critical path)"
-          : `${f.fl_slack} day${f.fl_slack === 1 ? "" : "s"}`,
+          ? tel("0 days") + " (on the critical path)"
+          : tel(`${f.fl_slack} day${f.fl_slack === 1 ? "" : "s"}`),
       ),
     );
     if (f.fl_confidence)
@@ -277,7 +299,7 @@ export function createGanttView(container: HTMLElement): GanttView {
     }
     gantt.clearAll();
     const payload = {
-      data: model.rows.map(toGanttTask),
+      data: model.rows.map((r) => toGanttTask(r, model.nextGateId)),
       links: model.links.map((l) => ({
         id: l.id,
         source: l.sourceId,
@@ -320,7 +342,7 @@ interface RawGanttTask extends FLFields {
   color?: string;
 }
 
-function toGanttTask(row: ChartRow): RawGanttTask {
+function toGanttTask(row: ChartRow, nextGateId: string | null): RawGanttTask {
   const diamond = isDiamond(row.kind);
   const container = row.kind === "group" || row.kind === "summary";
   const type = diamond ? "milestone" : container ? "project" : "task";
@@ -340,12 +362,13 @@ function toGanttTask(row: ChartRow): RawGanttTask {
     fl_slack: row.slack,
     fl_status: row.status,
     fl_percent: row.percent,
+    fl_nextGate: row.id === nextGateId,
     ...(row.confidence !== undefined ? { fl_confidence: row.confidence } : {}),
   };
 
-  // Colour identity: only leaf tasks + squad milestones wear a squad fill.
-  // Groups + summaries stay neutral, gates ink — all handled by CSS.
-  if (row.kind === "task" || row.kind === "milestone") base.color = row.squadColor;
+  // §7: timeline bars no longer carry squad identity — the bar FILL is STATE,
+  // set by CSS off the state classes. Squad colour survives only as the grid
+  // chip (fl_squadColor, read by the Task-column template). So no `color` here.
 
   if (diamond) {
     base.end_date = row.startISO; // zero width — DHTMLX draws a diamond

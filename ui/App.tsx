@@ -195,7 +195,7 @@ export default function App() {
   return (
     <div className="fl-app">
       <Header project={project} mode={mode} onToggleMode={toggleMode} />
-      <Toolbar squads={project.squads} zoom={zoom} onZoom={onZoom} />
+      <Toolbar zoom={zoom} onZoom={onZoom} />
       <Banner issues={project.issues} conflicts={schedule.conflicts} />
       {hasChart ? (
         <div className="fl-chart">
@@ -256,15 +256,7 @@ const ZOOMS: { id: Zoom; label: string }[] = [
   { id: "quarter", label: "Quarter" },
 ];
 
-function Toolbar({
-  squads,
-  zoom,
-  onZoom,
-}: {
-  squads: ProjectData["squads"];
-  zoom: Zoom;
-  onZoom: (z: Zoom) => void;
-}) {
+function Toolbar({ zoom, onZoom }: { zoom: Zoom; onZoom: (z: Zoom) => void }) {
   return (
     <div className="fl-toolbar">
       <div className="fl-seg" role="group" aria-label="Zoom level">
@@ -278,26 +270,34 @@ function Toolbar({
           </button>
         ))}
       </div>
+      {/* The legend is the STATE vocabulary (§7); squad identity lives in the
+          grid chips, not here. Ordered from the gold thread outward to quiet. */}
       <div className="fl-legend">
-        {squads.map((s) => (
-          <span className="fl-leg-item" key={s.id}>
-            <span className="fl-leg-chip" style={{ background: s.color }} />
-            {s.name}
-          </span>
-        ))}
         <span className="fl-leg-item">
-          <span className="fl-leg-crit" />
+          <span className="fl-leg-sw fl-leg-crit" />
           Critical path
         </span>
         <span className="fl-leg-item">
-          <span className="fl-leg-guess" />
+          <span className="fl-leg-sw fl-leg-active" />
+          In progress
+        </span>
+        <span className="fl-leg-item">
+          <span className="fl-leg-sw fl-leg-notstarted" />
+          Not started
+        </span>
+        <span className="fl-leg-item">
+          <span className="fl-leg-sw fl-leg-done" />
+          Done
+        </span>
+        <span className="fl-leg-item">
+          <span className="fl-leg-sw fl-leg-guess" />
           Guess
         </span>
         <span className="fl-leg-item">
-          <span className="fl-leg-glyph">◇</span> Review
+          <span className="fl-leg-glyph">◇</span> Review gate
         </span>
         <span className="fl-leg-item">
-          <span className="fl-leg-glyph">◆</span> Test
+          <span className="fl-leg-glyph">◆</span> Test gate
         </span>
       </div>
     </div>

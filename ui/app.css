@@ -19,11 +19,7 @@ body,
 body {
   background: var(--canvas);
   color: var(--text-primary);
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-ui); /* §3 interface family */
 }
 
 /* color-scheme makes native UI (scrollbar tracks, form controls) follow the
@@ -50,6 +46,11 @@ body {
   background: var(--surface-raised);
   border-radius: 6px;
 }
+/* The corner where the two scrollbars meet (and DHTMLX's scale/scroll corner
+ * placeholder) — token it so no light sliver shows through in dark mode. */
+::-webkit-scrollbar-corner {
+  background: var(--surface);
+}
 
 /* Full-height flex column: header + toolbar + banner are fixed, chart flexes. */
 .fl-app {
@@ -71,7 +72,7 @@ body {
 .fl-header h1 {
   margin: 0;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 .fl-header .fl-sub {
@@ -136,7 +137,7 @@ body {
   /* inverted chip = clearly "selected", no accent colour needed */
   background: var(--text-primary);
   color: var(--canvas);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* legend */
@@ -154,24 +155,30 @@ body {
   gap: 5px;
   white-space: nowrap;
 }
-.fl-leg-chip {
-  width: 11px;
+/* The legend is now the STATE vocabulary (§7) — squad identity lives only in the
+ * grid. Every swatch is the same bar-shaped chip so the row reads as one set. */
+.fl-leg-sw {
+  width: 16px;
   height: 11px;
   border-radius: 3px;
   display: inline-block;
+  flex: 0 0 auto;
 }
 .fl-leg-crit {
-  width: 16px;
-  height: 11px;
-  border-radius: 3px;
-  border: 2px solid var(--gold); /* critical path is the gold thread */
-  display: inline-block;
+  background: var(--gold); /* critical path is the gold thread — a FILL now */
+}
+.fl-leg-active {
+  background: var(--bar-active); /* in progress */
+}
+.fl-leg-notstarted {
+  background: transparent; /* the quiet resting state */
+  border: 1px solid var(--border-hair);
+}
+.fl-leg-done {
+  background: var(--text-secondary); /* receded history */
+  opacity: 0.5;
 }
 .fl-leg-guess {
-  width: 16px;
-  height: 11px;
-  border-radius: 3px;
-  display: inline-block;
   background: repeating-linear-gradient(
     45deg,
     var(--hatch-a) 0,
@@ -180,9 +187,11 @@ body {
     var(--hatch-b) 6px
   );
 }
+/* Gate glyphs read gold, but as *text* → the designated gold-as-text token so
+ * they stay legible on a light background (§2 a11y rule). */
 .fl-leg-glyph {
   font-size: 13px;
-  color: var(--text-primary);
+  color: var(--gold-text);
 }
 
 /* ── banner ────────────────────────────────────────────────────────────────── */
@@ -216,7 +225,7 @@ body {
 .fl-banner-toggle {
   margin-left: auto;
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 500;
 }
 .fl-banner-list {
   margin: 0;
