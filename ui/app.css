@@ -2,9 +2,10 @@
  * The chart's own look lives in gantt-theme.css; this file is only the chrome.
  *
  * Every colour resolves from ui/tokens.css (DESIGN_DIRECTION §2) — no literals
- * live here. This slice tokenizes the Phase-3.1 chrome onto the navy palette; it
- * does NOT yet apply the §4/§5/§7 visual language (no gold fills, no nebula, no
- * type changes). Page = --canvas; header/toolbar/panels = --surface. */
+ * live here. Layout per §5: the NEBULA lives on the page canvas only; header,
+ * toolbar, banner and chart are SOLID --surface panels floating above it, so
+ * the nebula shows only in the gutters and around panel edges — structurally
+ * never behind text. */
 
 html,
 body,
@@ -17,7 +18,13 @@ body,
   overflow: hidden;
 }
 body {
-  background: var(--canvas);
+  /* §5 nebula: two corner clouds + a gold-dust whisper (the gradient stack is
+   * the --nebula token; light mode resolves it to `none` — daytime is clear).
+   * `fixed` keeps the clouds still while content scrolls — the "window into
+   * space" feel. Painted on the CANVAS only; panels sit solid on top. */
+  background-color: var(--canvas);
+  background-image: var(--nebula);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-ui); /* §3 interface family */
 }
@@ -52,11 +59,27 @@ body {
   background: var(--surface);
 }
 
-/* Full-height flex column: header + toolbar + banner are fixed, chart flexes. */
+/* Full-height flex column: header + toolbar + banner are fixed, chart flexes.
+ * The shell carries the §5 gutters: page padding + gaps where the canvas (and
+ * its nebula) shows through between the solid panels. */
 .fl-app {
   display: flex;
   flex-direction: column;
   height: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  gap: 10px;
+}
+
+/* Every shell region is a proper §5 PANEL: solid surface, hairline, slight
+ * radius. The nebula lives around them, never under them. */
+.fl-header,
+.fl-toolbar,
+.fl-banner,
+.fl-chart {
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 10px;
 }
 
 /* ── header ────────────────────────────────────────────────────────────────── */
@@ -65,9 +88,7 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 20px 10px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border-hair);
+  padding: 12px 18px;
 }
 .fl-header h1 {
   margin: 0;
@@ -108,9 +129,7 @@ body {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 8px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border-hair);
+  padding: 8px 18px;
 }
 
 /* segmented zoom control */
@@ -171,8 +190,8 @@ body {
   background: var(--bar-active); /* in progress */
 }
 .fl-leg-notstarted {
-  background: transparent; /* the quiet resting state */
-  border: 1px solid var(--border-hair);
+  background: var(--neutral-bar); /* the quiet resting state: gunmetal hardware */
+  border: 1px solid var(--neutral-edge);
 }
 .fl-leg-done {
   background: var(--text-secondary); /* receded history */
@@ -196,8 +215,9 @@ body {
 
 /* ── banner ────────────────────────────────────────────────────────────────── */
 .fl-banner {
-  border-bottom: 1px solid var(--border-hair);
-  background: var(--blocked-bg); /* error banner */
+  /* Alert tint LAYERED over solid --surface: --blocked-bg is translucent in
+   * dark mode, and a §5 panel must stay opaque so no nebula sits behind text. */
+  background: linear-gradient(var(--blocked-bg), var(--blocked-bg)) var(--surface);
   font-size: 13px;
 }
 .fl-banner.fl-banner-warn {
@@ -253,6 +273,7 @@ body {
   flex: 1 1 auto;
   min-height: 0; /* let the DHTMLX container own the scroll, not the page */
   position: relative;
+  overflow: hidden; /* clip DHTMLX's square corners to the panel radius */
 }
 .fl-chart-inner {
   position: absolute;
@@ -260,6 +281,8 @@ body {
 }
 
 /* ── states: loading / error / empty ───────────────────────────────────────── */
+/* State screens are §5 panels too — their text must sit on solid surface,
+ * never over the nebula. */
 .fl-state {
   flex: 1 1 auto;
   display: flex;
@@ -270,6 +293,9 @@ body {
   color: var(--text-secondary);
   padding: 40px;
   text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 10px;
 }
 .fl-state h2 {
   margin: 0;

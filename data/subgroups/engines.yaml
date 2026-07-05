@@ -1,22 +1,25 @@
 # Owned by the Engines squad lead. Edit via the UI once it exists; ids are namespaced engines.*
-# Coarse rolling-wave chain — all auto, all guesses. Cross-file ids (review.*) are intentional.
+# Demo shape: prelim is done history (pinned, late May); detailed design is
+# underway now; fabrication + the injector/igniter test campaign sit ahead.
 tasks:
   - id: engines.prelim-design
     name: "Preliminary design"
-    schedule: { mode: auto, duration: 21 }
-    status: not-started
-    confidence: guess
+    # Pinned in the past — finished history, it recedes left of "today".
+    schedule: { mode: pinned, start: 2026-05-22, duration: 21 }
+    status: done
+    confidence: firm
 
   - id: engines.detailed-design
     name: "Detailed design"
-    schedule: { mode: auto, duration: 28 }
+    schedule: { mode: auto, duration: 30 }
     dependsOn: [review.pdr]
-    status: not-started
-    confidence: guess
+    status: in-progress
+    percent: 55
+    confidence: estimate
 
   - id: engines.injector-fab
     name: "Injector fabrication"
-    schedule: { mode: auto, duration: 21 }
+    schedule: { mode: auto, duration: 18 }
     dependsOn: [review.mrr]
     status: not-started
     confidence: guess
@@ -24,13 +27,21 @@ tasks:
   - id: engines.injector-test
     name: "Injector characterization"
     schedule: { mode: auto, duration: 14 }
-    dependsOn: [engines.injector-fab]
+    # ~5-day gap to stand up the flow bench after the part comes off the machine.
+    dependsOn: [{ task: engines.injector-fab, lag: 5 }]
     status: not-started
     confidence: guess
+
+  - id: engines.igniter-test-campaign
+    name: "Igniter test campaign"
+    schedule: { mode: auto, duration: 10 }
+    dependsOn: [engines.injector-test]
+    status: not-started
+    confidence: estimate
 
   - id: engines.chamber-ready
     name: "Combustion chamber ready"
     schedule: { mode: auto, duration: 7 }
-    dependsOn: [engines.injector-test]
+    dependsOn: [{ task: engines.igniter-test-campaign, lag: 3 }]
     status: not-started
     confidence: guess

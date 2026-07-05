@@ -1,30 +1,44 @@
 # Owned by the Structures squad lead. Edit via the UI once it exists; ids are namespaced structures.*
-# Coarse rolling-wave chain — all auto, all guesses. Cross-file ids (review.*) are intentional.
+# Demo shape: prelim is done history (pinned, late May); long-lead materials were
+# procured early (also done); detailed design is underway now; airframe fab +
+# tank integration sit ahead.
 tasks:
   - id: structures.prelim-design
     name: "Preliminary design"
-    schedule: { mode: auto, duration: 21 }
-    status: not-started
+    # Pinned in the past — finished history, it recedes left of "today".
+    schedule: { mode: pinned, start: 2026-05-20, duration: 21 }
+    status: done
+    confidence: firm
+
+  - id: structures.materials-proc
+    name: "Long-lead materials procurement"
+    # Ordered early (long-lead aluminium + composites) and already received; the
+    # procurement time was itself a guess, so this done bar carries the hatch.
+    schedule: { mode: pinned, start: 2026-06-01, duration: 25 }
+    status: done
     confidence: guess
 
   - id: structures.detailed-design
     name: "Detailed design"
     schedule: { mode: auto, duration: 28 }
     dependsOn: [review.pdr]
-    status: not-started
+    status: in-progress
+    percent: 80
     confidence: guess
 
   - id: structures.airframe-fab
     name: "Airframe fabrication"
     schedule: { mode: auto, duration: 35 }
-    dependsOn: [review.mrr]
+    # Needs both MRR authorisation and the long-lead stock (already in hand).
+    dependsOn: [review.mrr, structures.materials-proc]
     status: not-started
     confidence: guess
 
   - id: structures.tank-integration
     name: "Tank integration"
     schedule: { mode: auto, duration: 14 }
-    dependsOn: [structures.airframe-fab]
+    # ~7-day gap: fixturing + fit-checks before the tanks go into the airframe.
+    dependsOn: [{ task: structures.airframe-fab, lag: 7 }]
     status: not-started
     confidence: guess
 
@@ -33,4 +47,4 @@ tasks:
     schedule: { mode: auto, duration: 7 }
     dependsOn: [structures.tank-integration]
     status: not-started
-    confidence: guess
+    confidence: estimate

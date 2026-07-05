@@ -1,17 +1,22 @@
 # Owned by the Fluids squad lead. Edit via the UI once it exists; ids are namespaced fluids.*
-# Coarse rolling-wave chain — all auto, all guesses. Cross-file ids (review.*) are intentional.
+# Demo shape: prelim is done history (pinned, late May); detailed design is the
+# long pole underway now (it drives CDR — the gold critical thread runs through
+# it); feed + pressurization fabrication sit ahead.
 tasks:
   - id: fluids.prelim-design
     name: "Preliminary design"
-    schedule: { mode: auto, duration: 21 }
-    status: not-started
-    confidence: guess
+    # Pinned in the past — finished history, it recedes left of "today".
+    schedule: { mode: pinned, start: 2026-05-25, duration: 21 }
+    status: done
+    confidence: firm
 
   - id: fluids.detailed-design
     name: "Detailed design"
-    schedule: { mode: auto, duration: 28 }
+    # The longest detailed design → gates CDR → on the critical path.
+    schedule: { mode: auto, duration: 34 }
     dependsOn: [review.pdr]
-    status: not-started
+    status: in-progress
+    percent: 45
     confidence: guess
 
   - id: fluids.feed-system-fab
@@ -23,14 +28,16 @@ tasks:
 
   - id: fluids.feed-ready
     name: "Feed system ready"
-    schedule: { mode: auto, duration: 7 }
-    dependsOn: [fluids.feed-system-fab]
+    schedule: { mode: auto, duration: 9 }
+    # ~4-day gap: leak-check + acceptance before the feed system is called ready.
+    dependsOn: [{ task: fluids.feed-system-fab, lag: 4 }]
     status: not-started
-    confidence: guess
+    confidence: estimate
 
   - id: fluids.pressurization-ready
     name: "Pressurization system ready"
-    schedule: { mode: auto, duration: 14 }
-    dependsOn: [fluids.feed-ready]
+    schedule: { mode: auto, duration: 16 }
+    # ~6-day gap: the COPV + regulator string trails the feed system.
+    dependsOn: [{ task: fluids.feed-ready, lag: 6 }]
     status: not-started
     confidence: guess

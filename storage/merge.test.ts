@@ -35,14 +35,14 @@ describe("happy path — the real repo data files", () => {
     ]);
   });
 
-  it("has the right task count: 20 leaves + 5 reviews + 3 gates = 28", () => {
+  it("has the right task count: 23 leaves + 5 reviews + 3 gates = 31", () => {
     const data = mergeProject(realFiles(), NOW);
-    // 4 squads × 5/5/5/4 leaves = 19; plus the spine. Count exactly what loads.
+    // 4 squads × 6/5/6/6 leaves = 23; plus the 8-node spine. Count what loads.
     const ids = new Set(data.tasks.map((t) => t.id));
     expect(ids.has("review.pdr")).toBe(true);
     expect(ids.has("gate.first-flight")).toBe(true);
     expect(ids.has("engines.chamber-ready")).toBe(true);
-    expect(data.tasks).toHaveLength(27);
+    expect(data.tasks).toHaveLength(31);
   });
 
   it("feeds computeSchedule cleanly — no cycles, no missing dependencies", () => {

@@ -91,7 +91,10 @@ export function createGanttView(container: HTMLElement): GanttView {
 
   gantt.config.readonly = true;
   gantt.config.date_format = "%Y-%m-%d"; // how our ISO strings are parsed
-  gantt.config.row_height = 28;
+  // 22px bars in 34px rows: DHTMLX centres the bar, leaving ~6px of air above
+  // and below — breathing room so rows read separately (user feedback), not
+  // sprawl. The theme's bar height override matches (gantt-theme.css).
+  gantt.config.row_height = 34;
   gantt.config.bar_height = 22;
   gantt.config.scale_height = 46;
   gantt.config.grid_width = 460; // 260 + 112 + 88

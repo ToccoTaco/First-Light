@@ -68,7 +68,7 @@ describe("real repo data → ChartModel", () => {
     expect(model.rows[0].squadColor).toBe(NEUTRAL_COLOR);
   });
 
-  it("emits 27 task rows + 5 group rows = 32 rows", () => {
+  it("emits 31 task rows + 5 group rows = 36 rows", () => {
     const groups = model.rows.filter((r) => r.kind === "group");
     expect(groups.map((g) => g.name)).toEqual([
       "Mission spine",
@@ -77,7 +77,7 @@ describe("real repo data → ChartModel", () => {
       "Structures",
       "Avionics",
     ]);
-    expect(model.rows).toHaveLength(32);
+    expect(model.rows).toHaveLength(36);
   });
 
   it("renders all 8 spine gates as review/test diamonds under the spine group", () => {

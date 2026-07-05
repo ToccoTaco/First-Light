@@ -85,14 +85,16 @@
   border-bottom: 1px solid transparent;
 }
 
-/* Row stripes: --surface with a whisper of --surface-raised on odd rows. */
+/* Row stripes: --surface with a whisper of --grid-stripe on odd rows. The
+ * stripe is desaturated a step toward neutral (vs the raised-navy it used to
+ * be) so the timeline field carries less saturated blue — relief, not repaint. */
 .gantt_grid_data .gantt_row,
 .gantt_task_row {
   background-color: var(--surface);
 }
 .gantt_grid_data .gantt_row.odd,
 .gantt_task_row.odd {
-  background-color: var(--surface-raised);
+  background-color: var(--grid-stripe);
 }
 
 /* Hover + selection: lift to the raised surface. */
@@ -110,7 +112,8 @@
   border: 1px solid var(--bar-shade); /* subtle darker edge, hue-preserving */
   box-shadow: none;
   height: 22px !important;
-  margin-top: 1px; /* 2px breathing room between rows */
+  /* Row height is 34 (see gantt-adapter) with 22px bars → DHTMLX centres them
+   * with real air between rows; no margin nudge needed any more. */
 }
 .gantt_task_line .gantt_task_progress {
   /* Progress = a darker inner overlay, unchanged (§7 progress %). */
@@ -132,10 +135,13 @@
  *   not-started ▸ in-progress ▸ blocked ▸ critical(gold) ▸ done(receded)
  */
 
-/* not-started — the chart's quiet resting state: faint, hairline-outlined. */
+/* not-started — quiet gunmetal HARDWARE, not blue-on-blue: a solid neutral
+ * fill so the resting chart reads as a fourth family (navy surfaces · gray
+ * hardware · gold signal · blue activity) and gives the guess hatch a real
+ * surface to sit on. */
 .gantt_task_line.fl-bar.fl-st-not-started {
-  background: transparent;
-  border: 1px solid var(--border-hair);
+  background: var(--neutral-bar);
+  border: 1px solid var(--neutral-edge);
 }
 /* in-progress — the live blue. */
 .gantt_task_line.fl-bar.fl-st-in-progress {
@@ -271,8 +277,12 @@
 /* ── confidence texture: guess → hatch OVERLAY over whichever STATE fill ─────── */
 
 /* A 45° hatch layered via ::after at partial opacity, so the underlying state
- * fill (gold / blue / faint / receded / blocked) stays identifiable through it
- * (§7). Kept below the blocked dot (::before, z-index:3). */
+ * fill (gold / blue / gray / receded / blocked) stays identifiable through it
+ * (§7). The stripe pair is tuned in tokens.css as light-line/dark-gap GRAYS
+ * (not §7's original blue-on-blue): the pair's own internal contrast is what
+ * keeps the hatch clearly legible on every fill it overlays, while the 0.45
+ * opacity lets the state colour tint both stripes. Kept below the blocked dot
+ * (::before, z-index:3). */
 .gantt_task_line.fl-conf-guess::after {
   content: "";
   position: absolute;

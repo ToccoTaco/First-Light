@@ -31,10 +31,39 @@
   --blocked-fg: #e39a92; /* §2 blocked foreground */
   --blocked-bg: rgba(180, 84, 74, 0.18); /* §2 blocked background */
 
+  /* NEUTRAL family — EXTENDS §2 (pending the user folding it into the doc).
+   * A desaturated gunmetal slate — the "hardware" family — so the resting chart
+   * reads navy SURFACES + gray HARDWARE + gold SIGNAL + blue ACTIVITY instead of
+   * blue-on-blue. Cool but low-saturation (gunmetal instrument housing), never a
+   * warm gray; sits a clear step off the navy surface and well clear of blue. */
+  --neutral-bar: #414c5b; /* not-started bar fill (quiet gunmetal slate) */
+  --neutral-edge: #5c6675; /* its border — a lighter gunmetal to define the bar */
+  /* Timeline field relief (EXTENDS §2): the odd-row stripe, desaturated a hair
+   * toward neutral so the grid field carries less saturated blue. Surfaces stay
+   * navy per the spec identity — this only relieves, it does not repaint. */
+  --grid-stripe: #14283e; /* odd timeline/grid row stripe (quiet, near-surface) */
+
   /* Implied-but-unnamed tokens (documented per the slice brief): */
-  /* §7 guess-hatch stripe pair (dark values from §7's gradient spec). */
-  --hatch-a: #24456e; /* guess-hatch stripe A */
-  --hatch-b: #15304f; /* guess-hatch stripe B */
+  /* §7 guess-hatch stripe pair — RETUNED off §7's original blue-on-blue spec to a
+   * cool-neutral light-line/dark-gap pair, so the hatch stays CLEARLY visible on
+   * every state fill it overlays (gray not-started, gold critical, blue
+   * in-progress, receded done) rather than vanishing on the blue/navy fills. */
+  --hatch-a: #c8cfda; /* guess-hatch light line (cool near-white) */
+  --hatch-b: #1e2e44; /* guess-hatch dark gap (dark slate) */
+
+  /* §5 nebula — the two-corner cloud recipe + gold-dust whisper, kept as a token
+   * so the literal rgba values live in this (the only literal-bearing) file. The
+   * page canvas paints this behind SOLID surface panels, so it only shows in the
+   * gutters/margins and never behind text. Peaks at/below ~0.16 per §5. */
+  --nebula: radial-gradient(
+      60% 50% at 12% 8%,
+      rgba(83, 74, 183, 0.14),
+      transparent 60%
+    ),
+    /* violet cloud, upper-left */
+    radial-gradient(55% 45% at 88% 92%, rgba(28, 79, 143, 0.16), transparent 60%),
+    /* blue cloud, lower-right */
+    radial-gradient(45% 40% at 72% 22%, rgba(201, 151, 0, 0.05), transparent 55%); /* gold dust, whisper */
   /* Non-palette helpers — mode-independent so they read on any squad hue.
    * They live here (the only literal-bearing file) rather than in a component. */
   --bar-shade: rgba(0, 0, 0, 0.26); /* hue-preserving darkener: bar edge, progress, card shadow */
@@ -65,9 +94,23 @@
   --blocked-fg: #a0392c; /* §2 blocked foreground */
   --blocked-bg: #f7e1dd; /* §2 blocked background */
 
-  /* Quiet light-navy hatch pair (§8 "choose the quieter option"). */
-  --hatch-a: #d3ddec; /* guess-hatch stripe A */
-  --hatch-b: #e8edf5; /* guess-hatch stripe B */
+  /* NEUTRAL family (EXTENDS §2) — light-mode gunmetal: a mid slate-gray that
+   * reads as quiet hardware on white without dropping to disabled-gray. */
+  --neutral-bar: #8a94a3; /* not-started bar fill */
+  --neutral-edge: #6c7684; /* its border */
+  --grid-stripe: #eef0f4; /* odd-row stripe, desaturated (near-neutral) */
+
+  /* Guess-hatch pair, RETUNED for light mode: dark slate line on a near-white
+   * gap — grayscale contrast so it stays visible over gray/gold/navy/receded
+   * fills alike (the old light-navy pair washed out on the light bars). */
+  --hatch-a: #3e4a5c; /* guess-hatch dark line (slate ink) */
+  --hatch-b: #f2f4f8; /* guess-hatch light gap (cool near-white) */
   --bar-shade: rgba(0, 0, 0, 0.22); /* hue-preserving darkener */
   --text-on-accent: #f4f6fa; /* today-pill fills stay dark in light mode, so text stays near-white */
+
+  /* §5 nebula, light mode: the nebula stands down. Of §5's two sanctioned
+   * options (absent, or a ~0.03 cool wash) we take the QUIETER one — absent.
+   * `none` keeps the canvas clean and honest ("don't force a nebula onto
+   * white; honesty over consistency"). */
+  --nebula: none;
 }

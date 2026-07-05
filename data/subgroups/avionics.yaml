@@ -1,22 +1,42 @@
 # Owned by the Avionics squad lead. Edit via the UI once it exists; ids are namespaced avionics.*
-# Coarse rolling-wave chain — all auto, all guesses. Cross-file ids (review.*) are intentional.
+# Demo shape: avionics is the fast mover — prelim AND detailed design are done
+# history; the sensor bench is underway now; GNC bring-up is BLOCKED (waiting on
+# a sensor driver spec); flight-computer fabrication sits ahead.
 tasks:
   - id: avionics.prelim-design
     name: "Preliminary design"
-    schedule: { mode: auto, duration: 21 }
-    status: not-started
-    confidence: guess
+    # Pinned in the past — finished history, it recedes left of "today".
+    schedule: { mode: pinned, start: 2026-05-26, duration: 21 }
+    status: done
+    confidence: firm
 
   - id: avionics.detailed-design
     name: "Detailed design"
-    schedule: { mode: auto, duration: 28 }
+    # Short + already wrapped: avionics is ahead of the other squads.
+    schedule: { mode: auto, duration: 14 }
     dependsOn: [review.pdr]
-    status: not-started
+    status: done
+    confidence: firm
+
+  - id: avionics.sensor-bench
+    name: "Sensor bench bring-up"
+    schedule: { mode: auto, duration: 12 }
+    dependsOn: [avionics.detailed-design]
+    status: in-progress
+    percent: 30
+    confidence: estimate
+
+  - id: avionics.gnc-bringup
+    name: "GNC software bring-up"
+    schedule: { mode: auto, duration: 20 }
+    # Should have started, but it's stuck: waiting on the sensor driver spec.
+    dependsOn: [avionics.detailed-design]
+    status: blocked
     confidence: guess
 
   - id: avionics.flight-computer-fab
     name: "Flight computer fabrication"
-    schedule: { mode: auto, duration: 28 }
+    schedule: { mode: auto, duration: 26 }
     dependsOn: [review.mrr]
     status: not-started
     confidence: guess
@@ -24,6 +44,7 @@ tasks:
   - id: avionics.flight-computer-ready
     name: "Flight computer ready"
     schedule: { mode: auto, duration: 14 }
-    dependsOn: [avionics.flight-computer-fab]
+    # ~5-day gap: board bring-up + acceptance after the boards are populated.
+    dependsOn: [{ task: avionics.flight-computer-fab, lag: 5 }]
     status: not-started
     confidence: guess

@@ -1,5 +1,7 @@
 # project.yaml — the team lead owns this file: squads, the top-level spine, config.
-# Coarse on purpose (rolling-wave planning): every task is unpinned/auto and a guess.
+# Demo dataset (not the final schedule): shaped to exercise the full visual
+# vocabulary — done history on the left, work underway now, fabrication/tests
+# ahead. Rolling-wave planning: near-term detail is real, far-term stays coarse.
 project: "ND Experimental Propulsion — First Liquid Rocket"
 team: "Notre Dame Experimental Propulsion"
 mode: capability-driven # forward to readiness, not back from a comp date
@@ -13,8 +15,9 @@ squads:
   - { id: structures, name: Structures, color: "#1D9E75" } # airframe + all rocket structure
   - { id: avionics, name: Avionics, color: "#7F77DD" } # flight computer, sensing, control
 
-# The top-level spine: design reviews + test gates (§7). Unpinned for now — they
-# float on dependencies until we commit to real dates.
+# The top-level spine: design reviews + test gates (§7). Still unpinned — they
+# float on dependencies until we commit to real dates. A few small FS lags are
+# sprinkled in to reflect real prep gaps (e.g. manufacturing planning after CDR).
 reviews:
   - id: review.pdr
     name: "Preliminary Design Review (PDR)"
@@ -45,7 +48,8 @@ reviews:
     name: "Manufacturing Readiness Review (MRR)"
     milestone: true
     gate: review
-    dependsOn: [review.cdr]
+    # ~5-day gap: turning the CDR package into a manufacturing plan.
+    dependsOn: [{ task: review.cdr, lag: 5 }]
 
   - id: review.hfr
     name: "Hot-Fire Readiness Review (HFR)"
@@ -65,7 +69,8 @@ gates:
     name: "First engine hotfire"
     milestone: true
     gate: test
-    dependsOn: [review.hfr]
+    # ~3-day gap: standing up the hotfire after the readiness review clears.
+    dependsOn: [{ task: review.hfr, lag: 3 }]
 
   - id: gate.integrated-static-fire
     name: "Integrated static fire"
