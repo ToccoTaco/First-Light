@@ -19,6 +19,7 @@ import { Gantt } from "dhtmlx-gantt";
 import type { Task as DHXTask, Link as DHXLink } from "dhtmlx-gantt";
 import "dhtmlx-gantt/codebase/dhtmlxgantt.css";
 import "./gantt-theme.css";
+import { NEUTRAL_COLOR } from "./chart-model";
 import type { ChartModel, ChartRow } from "./chart-model";
 
 export type Zoom = "week" | "month" | "quarter";
@@ -29,7 +30,10 @@ export interface GanttView {
   destroy(): void;
 }
 
-const NEUTRAL = "#57606A";
+// The neutral squad-colour sentinel is defined once in chart-model (the data
+// layer); we reuse it here rather than repeat the literal, so this file stays
+// free of raw colour values.
+const NEUTRAL = NEUTRAL_COLOR;
 
 // Scale presets: week = day cells, month = week cells, quarter = month cells.
 const SCALES: Record<Zoom, { scales: object[]; minColWidth: number }> = {

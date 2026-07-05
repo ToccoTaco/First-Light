@@ -12,27 +12,28 @@
  *   templates.task_row_class  → added to the timeline row  .gantt_task_row
  *   templates.link_class      → added to the link wrapper  .gantt_task_link
  *
- * Design language: light, aerospace-clean. Whitespace over chrome. No gradients
- * except the confidence hatch; no drop shadows on bars.
+ * COLOUR: every value resolves from ui/tokens.css (DESIGN_DIRECTION §2) — no
+ * literals here. DHTMLX ships a light stock skin; we KEEP its stylesheet (for
+ * layout, diamonds, links, scroll geometry) and OVERRIDE every coloured surface
+ * onto tokens, so dark mode has no white patches. This slice is a tokenized
+ * retrofit of the 3.1 look — the §4/§5/§7 language (gold fills, nebula) is next.
  */
 
-:root {
-  --fl-surface: #fcfcfb;
-  --fl-text: #1f2328; /* primary */
-  --fl-text-secondary: #57606a;
-  --fl-text-muted: #8b949e;
-
-  --fl-critical: #b3261e; /* reserved serious red — critical path + blocked */
-  --fl-progress: #1f6feb; /* in-progress + today marker */
-  --fl-done: #1a7f37;
-  --fl-finish: #57606a; /* projected-finish marker */
-
-  --fl-hairline: #eaeef2;
-  --fl-group-tint: #f6f8fa;
-  --fl-grid-border: #d0d7de;
+/* ── suppress the stock skin's colours: force every DHTMLX surface to tokens ── */
+/* Backgrounds — grid, timeline, scales, data area: all → --surface (no white). */
+.gantt_container,
+.gantt_grid,
+.gantt_grid_scale,
+.gantt_grid_data,
+.gantt_task,
+.gantt_task_scale,
+.gantt_task_bg,
+.gantt_data_area,
+.gantt_layout_cell,
+.gantt_hor_scroll,
+.gantt_ver_scroll {
+  background-color: var(--surface);
 }
-
-/* ── overall canvas ────────────────────────────────────────────────────────── */
 
 .gantt_container,
 .gantt_task,
@@ -42,48 +43,74 @@
     -apple-system,
     "Segoe UI",
     sans-serif;
-  background: var(--fl-surface);
-  color: var(--fl-text);
+  color: var(--text-primary);
   border: none;
 }
 
+/* Scale rows (the date headers) — token text + hairline rules. */
 .gantt_grid_scale,
 .gantt_task_scale,
-.gantt_scale_line {
-  color: var(--fl-text-secondary);
+.gantt_scale_line,
+.gantt_scale_cell {
+  color: var(--text-secondary);
   font-weight: 500;
-  border-bottom: 1px solid var(--fl-hairline);
+  border-color: var(--border-hair);
+}
+.gantt_grid_scale,
+.gantt_task_scale {
+  border-bottom: 1px solid var(--border-hair);
+}
+
+/* Every stock-skin border → hairline navy. */
+.gantt_grid,
+.gantt_grid_head_cell,
+.gantt_layout_cell {
+  border-color: var(--border-hair);
 }
 
 /* Recessive timeline: hairline column rules, no weekend shading. */
 .gantt_task_cell {
-  border-right: 1px solid var(--fl-hairline);
+  border-right: 1px solid var(--border-hair);
 }
 .gantt_task_row {
   border-bottom: 1px solid transparent;
 }
+
+/* Row stripes: --surface with a whisper of --surface-raised on odd rows. */
 .gantt_grid_data .gantt_row,
-.gantt_grid_data .gantt_row.odd {
-  background: var(--fl-surface);
+.gantt_task_row {
+  background-color: var(--surface);
+}
+.gantt_grid_data .gantt_row.odd,
+.gantt_task_row.odd {
+  background-color: var(--surface-raised);
+}
+
+/* Hover + selection: lift to the raised surface. */
+.gantt_grid_data .gantt_row:hover,
+.gantt_task_row:hover,
+.gantt_grid_data .gantt_row.gantt_selected,
+.gantt_task_row.gantt_selected {
+  background-color: var(--surface-raised);
 }
 
 /* ── bars (leaf tasks) — squad colour arrives via task.color ───────────────── */
 
 .gantt_task_line {
   border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.22); /* subtle darker edge of the same hue */
+  border: 1px solid var(--bar-shade); /* subtle darker edge, hue-preserving */
   box-shadow: none;
   height: 22px !important;
   margin-top: 1px; /* 2px breathing room between rows */
 }
 .gantt_task_line .gantt_task_progress {
   /* Progress = a darker inner overlay of the same hue. */
-  background-color: rgba(0, 0, 0, 0.28);
+  background-color: var(--bar-shade);
   border-radius: 3px 0 0 3px;
   opacity: 1;
 }
 .gantt_task_line .gantt_task_content {
-  color: #fff;
+  color: var(--text-on-accent);
   font-size: 11px;
   line-height: 22px;
 }
@@ -92,14 +119,14 @@
 
 .gantt_task_line.gantt_project,
 .gantt_task_line.fl-summary {
-  background: rgba(31, 35, 40, 0.7) !important;
+  background: var(--text-secondary) !important;
   border: none !important;
   height: 8px !important;
   margin-top: 8px;
   border-radius: 2px;
 }
 .gantt_task_line.gantt_project .gantt_task_progress {
-  background: rgba(255, 255, 255, 0.35);
+  background: var(--bar-shade);
 }
 
 /* ── group header rows: no bar, tinted row, bold label ─────────────────────── */
@@ -109,81 +136,85 @@
 }
 .gantt_row.fl-group-row,
 .gantt_task_row.fl-group-row {
-  background: var(--fl-group-tint) !important;
+  background: var(--surface-raised) !important;
 }
 .fl-group-row .gantt_tree_content {
   font-weight: 700;
-  color: var(--fl-text);
+  color: var(--text-primary);
 }
 
 /* ── milestones + gates (diamonds) ─────────────────────────────────────────── */
 
 .gantt_task_line.gantt_milestone {
-  border: 1px solid rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--bar-shade);
   box-shadow: none;
 }
 /* Squad milestone: filled diamond in the squad colour (task.color drives fill). */
 
-/* Gate glyphs are neutral ink; review = outlined (surface fill), test = filled. */
+/* Gate glyphs are neutral ink; review = outlined (surface fill), test = filled.
+ * (Gold gate treatment is §7 — arrives in a later slice; kept ink here.) */
 .gantt_task_line.gantt_milestone.fl-gate-review {
-  background: var(--fl-surface) !important;
-  border: 2px solid var(--fl-text) !important;
+  background: var(--surface) !important;
+  border: 2px solid var(--text-primary) !important;
 }
 .gantt_task_line.gantt_milestone.fl-gate-test {
-  background: var(--fl-text) !important;
-  border: 2px solid var(--fl-text) !important;
+  background: var(--text-primary) !important;
+  border: 2px solid var(--text-primary) !important;
 }
 
 /* Direct-label gate/milestone names to the right, in primary ink. */
 .gantt_task_line .gantt_side_content.gantt_right {
-  color: var(--fl-text);
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
   padding-left: 10px;
 }
 
-/* ── critical path: 2px red outline on the entity; fill unchanged ──────────── */
+/* ── critical path: 2px gold outline on the entity; fill unchanged ─────────── */
+/* Gold's scarcity rule is already respected — gold appears ONLY here this slice. */
 
 .gantt_task_line.fl-critical {
-  outline: 2px solid var(--fl-critical);
+  outline: 2px solid var(--gold);
   outline-offset: 0;
 }
-/* Diamonds are rotated, so an outline would rotate oddly — use a red border. */
+/* Diamonds are rotated, so an outline would rotate oddly — use a gold border. */
 .gantt_task_line.gantt_milestone.fl-critical {
   outline: none;
-  border-color: var(--fl-critical) !important;
+  border-color: var(--gold) !important;
   border-width: 2px !important;
 }
 
-/* Links: critical endpoints → red 2px; everything else → quiet grey 1.5px. */
+/* Links: critical endpoints → gold; everything else → quiet dim telemetry. */
 .gantt_task_link .gantt_line_wrapper div {
-  background-color: #b6bcc4;
+  background-color: var(--text-telemetry);
 }
 .gantt_task_link .gantt_link_arrow {
-  border-color: #b6bcc4;
+  border-color: var(--text-telemetry);
 }
 .gantt_task_link.fl-link-critical .gantt_line_wrapper div {
-  background-color: var(--fl-critical);
+  background-color: var(--gold);
 }
 .gantt_task_link.fl-link-critical .gantt_link_arrow {
-  border-color: var(--fl-critical);
+  border-color: var(--gold);
 }
 
 /* ── confidence texture (our approved secondary encoding) ──────────────────── */
 
-/* guess → 45° hatch overlay. */
+/* guess → 45° hatch overlay. Semi-transparent so the squad hue still reads
+ * through it this slice (bars stay squad-coloured until §7). */
 .gantt_task_line.fl-conf-guess::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: 3px;
   pointer-events: none;
+  opacity: 0.55;
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(255, 255, 255, 0.45) 0,
-    rgba(255, 255, 255, 0.45) 4px,
-    transparent 4px,
-    transparent 8px
+    var(--hatch-a) 0,
+    var(--hatch-a) 4px,
+    var(--hatch-b) 4px,
+    var(--hatch-b) 8px
   );
 }
 /* estimate → dashed border instead of solid. */
@@ -203,8 +234,8 @@
 
 .fl-blocked-chip {
   display: inline-block;
-  background: var(--fl-critical);
-  color: #fff;
+  background: var(--blocked-bg);
+  color: var(--blocked-fg);
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
@@ -216,13 +247,13 @@
 /* ── grid (left pane) ──────────────────────────────────────────────────────── */
 
 .gantt_grid_head_cell {
-  color: var(--fl-text-secondary);
+  color: var(--text-secondary);
   font-weight: 600;
   font-size: 12px;
 }
 .gantt_tree_content,
 .gantt_cell {
-  color: var(--fl-text);
+  color: var(--text-primary);
   font-size: 13px;
 }
 
@@ -237,26 +268,26 @@
   flex: 0 0 auto;
 }
 
-/* Status cell: icon + word, colour by bucket. */
+/* Status cell: icon + word, colour by bucket (re-mapped to §2 tokens). */
 .fl-status {
   font-size: 12px;
   white-space: nowrap;
 }
 .fl-status-not-started {
-  color: var(--fl-text-muted);
+  color: var(--text-telemetry);
 }
 .fl-status-in-progress {
-  color: var(--fl-progress);
+  color: var(--bar-active);
 }
 .fl-status-blocked {
-  color: var(--fl-critical);
+  color: var(--blocked-fg);
   font-weight: 600;
 }
 .fl-status-done {
-  color: var(--fl-done);
+  color: var(--text-secondary);
 }
 .fl-finish-cell {
-  color: var(--fl-text-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -277,23 +308,27 @@
   left: 0;
   transform: translateX(-50%);
   white-space: nowrap;
-  color: #fff;
   font-size: 11px;
   font-weight: 600;
   border-radius: 3px;
   padding: 1px 6px;
 }
+/* Today: --bar-active line + pill, near-white label text (legible both modes). */
 .fl-marker-today {
-  border-left: 2px solid var(--fl-progress);
+  border-left: 2px solid var(--bar-active);
 }
 .fl-marker-today .fl-marker-label {
-  background: var(--fl-progress);
+  background: var(--bar-active);
+  color: var(--text-on-accent);
 }
+/* Projected finish: quiet secondary, label a bordered pill (readable both modes). */
 .fl-marker-finish {
-  border-left: 2px dashed var(--fl-finish);
+  border-left: 2px dashed var(--text-secondary);
 }
 .fl-marker-finish .fl-marker-label {
-  background: var(--fl-finish);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-hair);
   left: auto;
   right: 0;
   transform: translateX(50%);
@@ -302,23 +337,23 @@
 /* ── tooltip card ──────────────────────────────────────────────────────────── */
 
 .gantt_tooltip {
-  background: #fff;
-  border: 1px solid var(--fl-grid-border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-hair);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(31, 35, 40, 0.12);
+  box-shadow: 0 4px 12px var(--bar-shade);
   padding: 10px 12px;
-  color: var(--fl-text-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
   font-family: system-ui, sans-serif;
 }
 .gantt_tooltip .fl-tt-title {
-  color: var(--fl-text);
+  color: var(--text-primary);
   font-weight: 700;
   font-size: 13px;
   margin-bottom: 4px;
 }
 .gantt_tooltip .fl-tt-row b {
-  color: var(--fl-text);
+  color: var(--text-primary);
   font-weight: 600;
 }

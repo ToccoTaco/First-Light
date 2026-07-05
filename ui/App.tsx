@@ -13,6 +13,13 @@ import { mergeProject, type SourceFile } from "../storage/merge";
 import type { DataIssue, ProjectData } from "../storage/types";
 import { buildChartModel, type ChartModel } from "./chart-model";
 import { createGanttView, type GanttView, type Zoom } from "./gantt-adapter";
+import {
+  applyMode,
+  otherMode,
+  readMode,
+  resolveMode,
+  type Mode,
+} from "./mode";
 import "./app.css";
 
 // The manifest is a constant: project file first (its order is the tie-breaker
@@ -105,6 +112,9 @@ async function load(): Promise<LoadState> {
 export default function App() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [zoom, setZoom] = useState<Zoom>("month");
+  // The pre-paint script in index.html already stamped data-mode; seed state
+  // from it so the toggle is in sync without a flash.
+  const [mode, setMode] = useState<Mode>(() => readMode(document.documentElement));
   const zoomRef = useRef<Zoom>("month");
   const viewRef = useRef<GanttView | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -118,6 +128,21 @@ export default function App() {
       alive = false;
     };
   }, []);
+
+  // Authoritative resolve on mount (URL ?mode= wins and persists) — idempotent
+  // with the pre-paint stamp. The chart recolours live off the CSS vars, so a
+  // mode flip never rebuilds it.
+  useEffect(() => {
+    const resolved = resolveMode(window.location.search, window.localStorage);
+    applyMode(resolved, document.documentElement, window.localStorage);
+    setMode(resolved);
+  }, []);
+
+  const toggleMode = () => {
+    const next = otherMode(mode);
+    applyMode(next, document.documentElement, window.localStorage);
+    setMode(next);
+  };
 
   const model = state.status === "ready" ? state.model : null;
   const hasChart = !!model && model.hasSchedule && model.rows.length > 0;
@@ -144,7 +169,7 @@ export default function App() {
   if (state.status === "loading") {
     return (
       <div className="fl-app">
-        <Header />
+        <Header mode={mode} onToggleMode={toggleMode} />
         <div className="fl-state">
           <div>Acquiring signal…</div>
         </div>
@@ -155,7 +180,7 @@ export default function App() {
   if (state.status === "error") {
     return (
       <div className="fl-app">
-        <Header />
+        <Header mode={mode} onToggleMode={toggleMode} />
         <div className="fl-state">
           <div className="fl-card">
             <h2>Couldn't load the timeline</h2>
@@ -169,7 +194,7 @@ export default function App() {
   const { project, schedule } = state;
   return (
     <div className="fl-app">
-      <Header project={project} />
+      <Header project={project} mode={mode} onToggleMode={toggleMode} />
       <Toolbar squads={project.squads} zoom={zoom} onZoom={onZoom} />
       <Banner issues={project.issues} conflicts={schedule.conflicts} />
       {hasChart ? (
@@ -192,15 +217,35 @@ export default function App() {
   );
 }
 
-function Header({ project }: { project?: ProjectData }) {
+function Header({
+  project,
+  mode,
+  onToggleMode,
+}: {
+  project?: ProjectData;
+  mode: Mode;
+  onToggleMode: () => void;
+}) {
+  const target = otherMode(mode);
   return (
     <header className="fl-header">
-      <h1>First Light</h1>
-      <div className="fl-sub">
-        {project
-          ? `${project.projectName} · ${project.team}`
-          : "ND Experimental Propulsion — mission timeline"}
+      <div>
+        <h1>First Light</h1>
+        <div className="fl-sub">
+          {project
+            ? `${project.projectName} · ${project.team}`
+            : "ND Experimental Propulsion — mission timeline"}
+        </div>
       </div>
+      <button
+        type="button"
+        className="fl-mode-toggle"
+        onClick={onToggleMode}
+        aria-label={`Switch to ${target} mode`}
+        title={`Switch to ${target} mode`}
+      >
+        {mode === "dark" ? "☀ Light" : "☾ Dark"}
+      </button>
     </header>
   );
 }

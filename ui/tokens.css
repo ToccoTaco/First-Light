@@ -1,0 +1,65 @@
+/* ui/tokens.css — Source of truth — no raw color values in any component
+ * (DESIGN_DIRECTION §2).
+ *
+ * Every color the app draws resolves from one of the custom properties below.
+ * Components (app.css, gantt-theme.css, the .tsx/.ts files) reference these via
+ * var(--…) only; this is the ONLY stylesheet allowed to hold literal colors.
+ *
+ * Two mode sets per §6: dark is the default and the tool's identity, light is
+ * the daytime / projector / print alternative. The bare :root block duplicates
+ * the DARK set so the app is fully coloured even before the mode script runs.
+ * The active set is chosen by data-mode on <html> (see ui/mode.ts + index.html).
+ *
+ * NOTE — this slice ships the §2 TOKENS ONLY. The §4/§5/§7 visual language
+ * (gold-thread fills, nebula, typography) is deliberately NOT applied yet.
+ */
+
+/* ── DARK (default + identity) ─────────────────────────────────────────────── */
+:root,
+:root[data-mode="dark"] {
+  --canvas: #08111f; /* §2 page canvas (deep-space navy) */
+  --surface: #0c2340; /* §2 panel / card surface */
+  --surface-raised: #123056; /* §2 raised surface (tooltip, hover, stripe) */
+  --border-hair: #1c3252; /* §2 hairline / border */
+  --text-primary: #edebe3; /* §2 primary text (warm white) */
+  --text-secondary: #a9b8ce; /* §2 secondary text */
+  --text-telemetry: #7c8da8; /* §2 telemetry text (mono, dim) */
+  --gold: #c99700; /* §2 gold signal (fills, critical path) */
+  --gold-glow: #d39f10; /* §2 gold emphasis / next-gate glow */
+  --gold-text: #e7b633; /* §2 gold used as *text* */
+  --bar-active: #2c6fb0; /* §2 in-progress / today marker */
+  --blocked-fg: #e39a92; /* §2 blocked foreground */
+  --blocked-bg: rgba(180, 84, 74, 0.18); /* §2 blocked background */
+
+  /* Implied-but-unnamed tokens (documented per the slice brief): */
+  /* §7 guess-hatch stripe pair (dark values from §7's gradient spec). */
+  --hatch-a: #24456e; /* guess-hatch stripe A */
+  --hatch-b: #15304f; /* guess-hatch stripe B */
+  /* Non-palette helpers — mode-independent so they read on any squad hue.
+   * They live here (the only literal-bearing file) rather than in a component. */
+  --bar-shade: rgba(0, 0, 0, 0.26); /* hue-preserving darkener: bar edge, progress, card shadow */
+  --text-on-accent: #f4f6fa; /* near-white text/glyph on a saturated fill (today pill), both modes */
+}
+
+/* ── LIGHT (daytime / projector / print) ───────────────────────────────────── */
+:root[data-mode="light"] {
+  --canvas: #f6f4ee; /* §2 page canvas */
+  --surface: #ffffff; /* §2 panel / card surface */
+  --surface-raised: #ffffff; /* §2 raised surface */
+  --border-hair: #d9dee8; /* §2 hairline / border */
+  --text-primary: #0c2340; /* §2 primary text (navy) */
+  --text-secondary: #5a6b85; /* §2 secondary text */
+  --text-telemetry: #8a93a5; /* §2 telemetry text (mono, dim) */
+  --gold: #c99700; /* §2 gold signal (fills only in light — see §2 a11y rule) */
+  --gold-glow: #b4870c; /* §2 gold emphasis / next-gate glow */
+  --gold-text: #9a7500; /* §2 gold used as *text* (never raw #C99700 on white) */
+  --bar-active: #143865; /* §2 in-progress / today marker */
+  --blocked-fg: #a0392c; /* §2 blocked foreground */
+  --blocked-bg: #f7e1dd; /* §2 blocked background */
+
+  /* Quiet light-navy hatch pair (§8 "choose the quieter option"). */
+  --hatch-a: #d3ddec; /* guess-hatch stripe A */
+  --hatch-b: #e8edf5; /* guess-hatch stripe B */
+  --bar-shade: rgba(0, 0, 0, 0.22); /* hue-preserving darkener */
+  --text-on-accent: #f4f6fa; /* today-pill fills stay dark in light mode, so text stays near-white */
+}

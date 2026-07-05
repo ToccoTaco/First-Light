@@ -4,6 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>First Light — ND Experimental Propulsion</title>
+    <!-- No-flash mode stamp: resolve dark/light BEFORE first paint. Mirrors the
+         rules in ui/mode.ts (URL ?mode= wins and persists, else stored, else
+         dark). Kept as a classic inline script so it runs pre-paint, unlike the
+         deferred module bundle. -->
+    <script>
+      (function () {
+        try {
+          var key = "first-light:mode";
+          var param = new URLSearchParams(location.search).get("mode");
+          var stored = localStorage.getItem(key);
+          var mode =
+            param === "dark" || param === "light"
+              ? param
+              : stored === "dark" || stored === "light"
+                ? stored
+                : "dark";
+          if (param === "dark" || param === "light")
+            localStorage.setItem(key, mode);
+          document.documentElement.setAttribute("data-mode", mode);
+        } catch (e) {
+          document.documentElement.setAttribute("data-mode", "dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

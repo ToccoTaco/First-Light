@@ -1,32 +1,54 @@
 /* ui/app.css — the app shell around the chart: header, toolbar, banner, states.
- * The chart's own look lives in gantt-theme.css; this file is only the chrome. */
-
-:root {
-  --fl-surface: #fcfcfb;
-  --fl-text: #1f2328;
-  --fl-text-secondary: #57606a;
-  --fl-text-muted: #8b949e;
-  --fl-critical: #b3261e;
-  --fl-progress: #1f6feb;
-  --fl-hairline: #eaeef2;
-  --fl-group-tint: #f6f8fa;
-  --fl-grid-border: #d0d7de;
-}
+ * The chart's own look lives in gantt-theme.css; this file is only the chrome.
+ *
+ * Every colour resolves from ui/tokens.css (DESIGN_DIRECTION §2) — no literals
+ * live here. This slice tokenizes the Phase-3.1 chrome onto the navy palette; it
+ * does NOT yet apply the §4/§5/§7 visual language (no gold fills, no nebula, no
+ * type changes). Page = --canvas; header/toolbar/panels = --surface. */
 
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
+  /* The shell is exactly viewport-height; the only scroll lives inside the
+   * DHTMLX chart. Locking page overflow removes the native page scrollbar
+   * (whose track paints light in dark mode). */
+  overflow: hidden;
 }
 body {
-  background: var(--fl-surface);
-  color: var(--fl-text);
+  background: var(--canvas);
+  color: var(--text-primary);
   font-family:
     system-ui,
     -apple-system,
     "Segoe UI",
     sans-serif;
+}
+
+/* color-scheme makes native UI (scrollbar tracks, form controls) follow the
+ * mode — without it, dark mode shows a bright OS scrollbar track. The bare
+ * :root defaults to dark to match tokens.css. */
+:root,
+:root[data-mode="dark"] {
+  color-scheme: dark;
+}
+:root[data-mode="light"] {
+  color-scheme: light;
+}
+
+/* Theme the scrollbars DHTMLX and the page draw onto tokens, so no light track
+ * shows through in dark mode. */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-raised);
+  border-radius: 6px;
 }
 
 /* Full-height flex column: header + toolbar + banner are fixed, chart flexes. */
@@ -38,8 +60,13 @@ body {
 
 /* ── header ────────────────────────────────────────────────────────────────── */
 .fl-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   padding: 14px 20px 10px;
-  border-bottom: 1px solid var(--fl-hairline);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-hair);
 }
 .fl-header h1 {
   margin: 0;
@@ -48,9 +75,29 @@ body {
   letter-spacing: -0.01em;
 }
 .fl-header .fl-sub {
-  color: var(--fl-text-secondary);
+  color: var(--text-secondary);
   font-size: 13px;
   margin-top: 2px;
+}
+
+/* Quiet dark/light toggle — low-emphasis, token-only, never gold (not signal).
+ * Shows the mode it switches *to* as the affordance. */
+.fl-mode-toggle {
+  appearance: none;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-hair);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.fl-mode-toggle:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
 }
 
 /* ── toolbar ───────────────────────────────────────────────────────────────── */
@@ -61,13 +108,14 @@ body {
   gap: 16px;
   flex-wrap: wrap;
   padding: 8px 20px;
-  border-bottom: 1px solid var(--fl-hairline);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-hair);
 }
 
 /* segmented zoom control */
 .fl-seg {
   display: inline-flex;
-  border: 1px solid var(--fl-grid-border);
+  border: 1px solid var(--border-hair);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -75,18 +123,19 @@ body {
   appearance: none;
   border: none;
   background: transparent;
-  color: var(--fl-text-secondary);
+  color: var(--text-secondary);
   font-size: 13px;
   padding: 5px 14px;
   cursor: pointer;
-  border-right: 1px solid var(--fl-grid-border);
+  border-right: 1px solid var(--border-hair);
 }
 .fl-seg button:last-child {
   border-right: none;
 }
 .fl-seg button[aria-pressed="true"] {
-  background: var(--fl-text);
-  color: #fff;
+  /* inverted chip = clearly "selected", no accent colour needed */
+  background: var(--text-primary);
+  color: var(--canvas);
   font-weight: 600;
 }
 
@@ -97,7 +146,7 @@ body {
   gap: 14px;
   flex-wrap: wrap;
   font-size: 12px;
-  color: var(--fl-text-secondary);
+  color: var(--text-secondary);
 }
 .fl-legend .fl-leg-item {
   display: inline-flex;
@@ -115,7 +164,7 @@ body {
   width: 16px;
   height: 11px;
   border-radius: 3px;
-  border: 2px solid var(--fl-critical);
+  border: 2px solid var(--gold); /* critical path is the gold thread */
   display: inline-block;
 }
 .fl-leg-guess {
@@ -123,29 +172,27 @@ body {
   height: 11px;
   border-radius: 3px;
   display: inline-block;
-  background:
-    repeating-linear-gradient(
-      45deg,
-      rgba(255, 255, 255, 0.55) 0,
-      rgba(255, 255, 255, 0.55) 3px,
-      transparent 3px,
-      transparent 6px
-    ),
-    var(--fl-text-muted);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--hatch-a) 0,
+    var(--hatch-a) 3px,
+    var(--hatch-b) 3px,
+    var(--hatch-b) 6px
+  );
 }
 .fl-leg-glyph {
   font-size: 13px;
-  color: var(--fl-text);
+  color: var(--text-primary);
 }
 
 /* ── banner ────────────────────────────────────────────────────────────────── */
 .fl-banner {
-  border-bottom: 1px solid var(--fl-hairline);
-  background: #fff8f6;
+  border-bottom: 1px solid var(--border-hair);
+  background: var(--blocked-bg); /* error banner */
   font-size: 13px;
 }
 .fl-banner.fl-banner-warn {
-  background: #fffdf3;
+  background: var(--surface-raised); /* warning banner (gold-text sits on this) */
 }
 .fl-banner-summary {
   display: flex;
@@ -153,28 +200,28 @@ body {
   gap: 10px;
   padding: 8px 20px;
   cursor: pointer;
-  color: var(--fl-text);
+  color: var(--text-primary);
   user-select: none;
 }
 .fl-banner-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--fl-critical);
+  background: var(--blocked-fg);
   flex: 0 0 auto;
 }
 .fl-banner.fl-banner-warn .fl-banner-dot {
-  background: #bf8700;
+  background: var(--gold-text);
 }
 .fl-banner-toggle {
   margin-left: auto;
-  color: var(--fl-progress);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 .fl-banner-list {
   margin: 0;
   padding: 4px 20px 12px 40px;
-  color: var(--fl-text-secondary);
+  color: var(--text-secondary);
   list-style: none;
 }
 .fl-banner-list li {
@@ -182,14 +229,14 @@ body {
 }
 .fl-banner-list li::before {
   content: "•";
-  color: var(--fl-text-muted);
+  color: var(--text-telemetry);
   margin-right: 8px;
 }
 .fl-issue-error b {
-  color: var(--fl-critical);
+  color: var(--blocked-fg);
 }
 .fl-issue-warning b {
-  color: #bf8700;
+  color: var(--gold-text);
 }
 
 /* ── chart area ────────────────────────────────────────────────────────────── */
@@ -211,24 +258,24 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--fl-text-secondary);
+  color: var(--text-secondary);
   padding: 40px;
   text-align: center;
 }
 .fl-state h2 {
   margin: 0;
   font-size: 16px;
-  color: var(--fl-text);
+  color: var(--text-primary);
 }
 .fl-state .fl-card {
   max-width: 460px;
-  border: 1px solid var(--fl-grid-border);
+  border: 1px solid var(--border-hair);
   border-radius: 10px;
   padding: 20px 24px;
-  background: #fff;
+  background: var(--surface);
 }
 .fl-state code {
-  background: var(--fl-group-tint);
+  background: var(--surface-raised);
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 12px;
