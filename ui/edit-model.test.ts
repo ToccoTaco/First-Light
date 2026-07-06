@@ -4,19 +4,35 @@ import type { GitHubTarget, LoadResult, SaveResult } from "../storage/github";
 import {
   PROJECT_FILE,
   accumulate,
+  addTaskToState,
+  applyEditsToTasks,
   applyPatchToTask,
   applyPatchesToTasks,
+  blockingDependents,
   commitMessage,
+  commitMessageFor,
+  depId,
+  dependsOnIds,
   dirtyCount,
   dirtyFiles,
+  editDirtyCount,
+  editDirtyFiles,
   effectiveStatus,
+  eligibleDependencyTargets,
   fileForTaskId,
   isEditable,
+  kebab,
+  makeTaskId,
+  milestonePatch,
   movePatch,
+  newSquadTask,
   nextStatus,
+  releasePatch,
+  removeTaskFromState,
   resizePatch,
   saveAll,
   squadFile,
+  type EditState,
   type GitHubClient,
   type PatchMap,
 } from "./edit-model";
@@ -486,5 +502,342 @@ describe("saveAll (mocked GitHub client)", () => {
     expect(out.noToken).toBe(true);
     expect(out.results).toEqual([]);
     expect(calls).toEqual([]);
+  });
+
+  it("add + remove + edit land in ONE text pass with a three-verb message", async () => {
+    const TEXT = `tasks:
+  - id: engines.a
+    name: "Task A"
+    schedule: { mode: auto, duration: 5 }
+    status: not-started
+  - id: engines.b
+    name: "Task B"
+    schedule: { mode: auto, duration: 3 }
+    status: not-started
+`;
+    const { client, calls } = fakeClient({
+      load: { [EPATH]: loadOk(EPATH, TEXT, "sha-1") },
+      save: { [EPATH]: saveOk("sha-2") },
+    });
+
+    const out = await saveAll(
+      {
+        patches: {
+          "engines.b": { status: "in-progress" }, // edit
+          "engines.new-part": { name: "New part (refined)" }, // refines the add
+        },
+        added: [newSquadTask("engines.new-part", "New part")],
+        removed: ["engines.a"],
+        originalTexts: { [EPATH]: TEXT },
+        squadIds: SQUADS,
+        target: TARGET,
+        token: TOKEN,
+      },
+      client,
+    );
+
+    const r = out.results[0];
+    expect(r.ok).toBe(true);
+    // Covers every touched id so the app clears all three kinds on success.
+    expect(new Set(r.taskIds)).toEqual(
+      new Set(["engines.b", "engines.new-part", "engines.a"]),
+    );
+
+    const save = calls.find((c) => c.op === "save")!;
+    const text = save.newText!;
+    expect(text).not.toContain("engines.a"); // removed
+    expect(text).toContain("id: engines.new-part"); // added
+    expect(text).toContain("New part (refined)"); // add carried its refine patch
+    expect(text).toMatch(/id: engines\.b[\s\S]*status: in-progress/); // edited
+    // Three-verb commit subject (order: add; update; remove).
+    expect(save.message).toBe(
+      "engines: add new-part; update b; remove a (First Light)",
+    );
+  });
+});
+
+// ── full-panel patch builders ────────────────────────────────────────────────────
+
+describe("releasePatch", () => {
+  it("releases a pinned task to auto, DROPPING the stale start", () => {
+    const t = pinned("engines.x", "2026-08-14", 12);
+    const after = applyPatchToTask(t, releasePatch(12));
+    expect(after.schedule).toEqual({ mode: "auto", duration: 12 });
+    expect("start" in after.schedule).toBe(false);
+  });
+
+  it("carries start:undefined so the serializer's undefined-deletes path fires", () => {
+    // The explicit undefined is what makes applyTaskEdit delete the YAML key.
+    expect(releasePatch(7).schedule).toEqual({
+      mode: "auto",
+      start: undefined,
+      duration: 7,
+    });
+  });
+});
+
+describe("milestonePatch", () => {
+  it("turning ON forces duration 0", () => {
+    expect(milestonePatch(true)).toEqual({
+      milestone: true,
+      schedule: { duration: 0 },
+    });
+  });
+  it("turning OFF just drops the flag", () => {
+    expect(milestonePatch(false)).toEqual({ milestone: false });
+  });
+});
+
+// ── applyPatchToTask — the new full-panel fields ──────────────────────────────────
+
+describe("applyPatchToTask (full-panel fields)", () => {
+  it("sets name and confidence", () => {
+    const t = auto("engines.x", 5);
+    const after = applyPatchToTask(t, { name: "Renamed", confidence: "firm" });
+    expect(after.name).toBe("Renamed");
+    expect(after.confidence).toBe("firm");
+  });
+
+  it("percent: a number sets it, null clears it", () => {
+    const t = auto("engines.x", 10, { percent: 40 });
+    expect(applyPatchToTask(t, { percent: 80 }).percent).toBe(80);
+    expect("percent" in applyPatchToTask(t, { percent: null })).toBe(false);
+  });
+
+  it("milestone true sets it, false removes it", () => {
+    const t = auto("engines.x", 0, { milestone: true });
+    expect("milestone" in applyPatchToTask(t, { milestone: false })).toBe(false);
+    expect(applyPatchToTask(auto("engines.y", 0), { milestone: true }).milestone).toBe(
+      true,
+    );
+  });
+
+  it("deadline: object sets it, null clears it", () => {
+    const t = auto("engines.x", 5, { deadline: { date: "2026-09-01", hard: true } });
+    expect(applyPatchToTask(t, { deadline: null }).deadline).toBeUndefined();
+    const set = applyPatchToTask(auto("engines.y", 5), {
+      deadline: { date: "2026-10-10", hard: false },
+    });
+    expect(set.deadline).toEqual({ date: "2026-10-10", hard: false });
+  });
+
+  it("dependsOn: a list replaces, an empty list clears", () => {
+    const t = auto("engines.x", 5, { dependsOn: ["engines.a"] });
+    expect(applyPatchToTask(t, { dependsOn: ["engines.b", "engines.c"] }).dependsOn).toEqual(
+      ["engines.b", "engines.c"],
+    );
+    expect("dependsOn" in applyPatchToTask(t, { dependsOn: [] })).toBe(false);
+  });
+});
+
+// ── EditState: adds + removes + patches together ──────────────────────────────────
+
+describe("EditState derivations", () => {
+  const base = () => [auto("engines.a", 5), auto("engines.b", 3)];
+
+  it("applyEditsToTasks drops removed, appends added, applies patches", () => {
+    const state: EditState = {
+      patches: { "engines.b": { status: "done" } },
+      added: [newSquadTask("engines.c", "C")],
+      removed: ["engines.a"],
+    };
+    const out = applyEditsToTasks(base(), state);
+    expect(out.map((t) => t.id)).toEqual(["engines.b", "engines.c"]);
+    expect(out[0].status).toBe("done");
+  });
+
+  it("removeTaskFromState un-adds an unsaved add (clean no-op)", () => {
+    let state: EditState = { patches: {}, added: [], removed: [] };
+    state = addTaskToState(state, newSquadTask("engines.c", "C"));
+    state = removeTaskFromState(state, "engines.c");
+    expect(state.added).toEqual([]);
+    expect(state.removed).toEqual([]);
+  });
+
+  it("removeTaskFromState marks an existing task removed and drops its patch", () => {
+    const state: EditState = {
+      patches: { "engines.a": { status: "done" } },
+      added: [],
+      removed: [],
+    };
+    const next = removeTaskFromState(state, "engines.a");
+    expect(next.removed).toEqual(["engines.a"]);
+    expect(next.patches).toEqual({});
+  });
+
+  it("editDirtyCount: one per add/remove; a patch on an added task isn't double-counted", () => {
+    expect(
+      editDirtyCount({
+        patches: { "engines.b": {} },
+        added: [newSquadTask("engines.c", "C")],
+        removed: ["engines.a"],
+      }),
+    ).toBe(3);
+    expect(
+      editDirtyCount({
+        patches: { "engines.c": { name: "x" } }, // refines the add
+        added: [newSquadTask("engines.c", "C")],
+        removed: [],
+      }),
+    ).toBe(1);
+  });
+
+  it("editDirtyFiles unions edits+adds+removes in squad order, project last", () => {
+    expect(
+      editDirtyFiles(
+        {
+          patches: { "engines.b": {}, "review.pdr": {} },
+          added: [newSquadTask("fluids.new", "N")],
+          removed: ["avionics.old"],
+        },
+        SQUADS,
+      ),
+    ).toEqual([
+      squadFile("engines"),
+      squadFile("fluids"),
+      squadFile("avionics"),
+      PROJECT_FILE,
+    ]);
+  });
+});
+
+// ── dependency helpers + eligibility (the §8 picker rule) ─────────────────────────
+
+describe("depId / dependsOnIds", () => {
+  it("reads ids from both the string and object dependency forms", () => {
+    expect(depId("engines.a")).toBe("engines.a");
+    expect(depId({ task: "engines.b", type: "SS", lag: 2 })).toBe("engines.b");
+    expect(dependsOnIds(["engines.a", { task: "engines.b" }])).toEqual([
+      "engines.a",
+      "engines.b",
+    ]);
+    expect(dependsOnIds(undefined)).toEqual([]);
+  });
+});
+
+describe("eligibleDependencyTargets", () => {
+  const squads = [
+    { id: "engines", name: "Engines" },
+    { id: "fluids", name: "Fluids" },
+  ];
+  const graph: Task[] = [
+    auto("engines.a", 5),
+    auto("engines.b", 5),
+    auto("engines.m", 0, { milestone: true }),
+    auto("fluids.internal", 5), // other squad, NOT a milestone
+    auto("fluids.pub", 0, { milestone: true }), // other squad, published
+    { id: "review.pdr", name: "PDR", milestone: true, gate: "review", schedule: { mode: "auto", duration: 0 } },
+    { id: "gate.hot", name: "Hotfire", milestone: true, gate: "test", schedule: { mode: "auto", duration: 0 } },
+  ];
+
+  it("for a squad task: own squad + all spine + OTHER squads' milestones only", () => {
+    const ids = eligibleDependencyTargets(
+      graph[0], // engines.a
+      graph,
+      squads,
+      SQUADS,
+    ).map((t) => t.id);
+    expect(new Set(ids)).toEqual(
+      new Set(["engines.b", "engines.m", "fluids.pub", "review.pdr", "gate.hot"]),
+    );
+    // The §8 rule made visible: a different squad's internal task is NOT offered.
+    expect(ids).not.toContain("fluids.internal");
+    expect(ids).not.toContain("engines.a"); // never itself
+  });
+
+  it("excludes ids already depended on", () => {
+    const withDep = auto("engines.a", 5, { dependsOn: ["engines.b"] });
+    const ids = eligibleDependencyTargets(withDep, graph, squads, SQUADS).map(
+      (t) => t.id,
+    );
+    expect(ids).not.toContain("engines.b");
+  });
+
+  it("for a spine task: all squads' milestones + other spine items, no squad internals", () => {
+    const ids = eligibleDependencyTargets(
+      graph[5], // review.pdr
+      graph,
+      squads,
+      SQUADS,
+    ).map((t) => t.id);
+    expect(new Set(ids)).toEqual(new Set(["engines.m", "fluids.pub", "gate.hot"]));
+    expect(ids).not.toContain("engines.a");
+    expect(ids).not.toContain("fluids.internal");
+    expect(ids).not.toContain("review.pdr"); // never itself
+  });
+
+  it("tags each target with a display group (Spine or squad name)", () => {
+    const targets = eligibleDependencyTargets(graph[0], graph, squads, SQUADS);
+    expect(targets.find((t) => t.id === "review.pdr")?.group).toBe("Spine");
+    expect(targets.find((t) => t.id === "fluids.pub")?.group).toBe("Fluids");
+  });
+});
+
+describe("blockingDependents", () => {
+  it("lists every task that depends on the given id", () => {
+    const tasks = [
+      auto("engines.a", 5),
+      auto("engines.b", 5, { dependsOn: ["engines.a"] }),
+      auto("engines.c", 5, { dependsOn: [{ task: "engines.a", type: "SS" }] }),
+      auto("engines.d", 5),
+    ];
+    expect(blockingDependents("engines.a", tasks).map((t) => t.id)).toEqual([
+      "engines.b",
+      "engines.c",
+    ]);
+    expect(blockingDependents("engines.d", tasks)).toEqual([]);
+  });
+});
+
+// ── new-task id generation ────────────────────────────────────────────────────────
+
+describe("kebab / makeTaskId / newSquadTask", () => {
+  it("kebab slugs a display name, empty → 'task'", () => {
+    expect(kebab("  Flow Bench Test!  ")).toBe("flow-bench-test");
+    expect(kebab("Injector — v2")).toBe("injector-v2");
+    expect(kebab("")).toBe("task");
+    expect(kebab("!!!")).toBe("task");
+  });
+
+  it("makeTaskId namespaces + bumps a numeric suffix on collision", () => {
+    expect(makeTaskId("engines", "Flow bench", [])).toBe("engines.flow-bench");
+    expect(makeTaskId("engines", "Flow bench", ["engines.flow-bench"])).toBe(
+      "engines.flow-bench-2",
+    );
+    expect(
+      makeTaskId("engines", "Flow bench", [
+        "engines.flow-bench",
+        "engines.flow-bench-2",
+      ]),
+    ).toBe("engines.flow-bench-3");
+  });
+
+  it("newSquadTask is auto/7d/not-started/guess with no deps (§10 defaults)", () => {
+    expect(newSquadTask("engines.x", "X")).toEqual({
+      id: "engines.x",
+      name: "X",
+      schedule: { mode: "auto", duration: 7 },
+      status: "not-started",
+      confidence: "guess",
+    });
+  });
+});
+
+// ── commit message (add/remove aware) ─────────────────────────────────────────────
+
+describe("commitMessageFor", () => {
+  it("composes add; update; remove in a stable order", () => {
+    expect(
+      commitMessageFor("engines", {
+        added: ["engines.foo"],
+        edited: ["engines.bar"],
+        removed: ["engines.baz"],
+      }),
+    ).toBe("engines: add foo; update bar; remove baz (First Light)");
+  });
+  it("omits empty verbs", () => {
+    expect(
+      commitMessageFor("fluids", { added: ["fluids.n"], edited: [], removed: [] }),
+    ).toBe("fluids: add n (First Light)");
   });
 });

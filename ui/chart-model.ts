@@ -354,6 +354,66 @@ export function buildChartModel(
   }
 }
 
+// ── squad filtering (§8/§9) — a pure row-filter over a built ChartModel ──────────
+
+/**
+ * Which slice of the chart to show. `spine` is the §9 one-slide review view (the
+ * mission spine only); `squad` is that squad's group PLUS the spine above it (the
+ * lead's default working view); `everything` is the whole chart.
+ */
+export type ChartView =
+  | { kind: "everything" }
+  | { kind: "spine" }
+  | { kind: "squad"; squadId: string };
+
+/**
+ * Filter a ChartModel down to a view. Groups are kept or dropped whole (a group
+ * and its entire subtree travel together), links are pruned to those whose BOTH
+ * endpoints survive, and markers + nextGateId pass through untouched (the spine —
+ * hence the next gate — is present in every view except a foreign single-squad
+ * one, and an absent glow target is harmless). Pure: unit-tested, no DOM.
+ */
+export function filterChartModel(model: ChartModel, view: ChartView): ChartModel {
+  if (view.kind === "everything") return model;
+
+  // Map every row to its top-level group ancestor (groups are the only roots).
+  const byId = new Map(model.rows.map((r) => [r.id, r]));
+  const groupOf = (row: ChartRow): ChartRow => {
+    let cur = row;
+    while (cur.parentId !== null) {
+      const parent = byId.get(cur.parentId);
+      if (!parent) break;
+      cur = parent;
+    }
+    return cur;
+  };
+
+  // A group is the SPINE group iff any of its rows is a gate (spine reviews/tests);
+  // that distinguishes it from the squadless "Other" group, which also has a null
+  // squadId. Precompute the spine group ids.
+  const spineGroupIds = new Set<string>();
+  for (const r of model.rows) {
+    if (r.kind === "gate-review" || r.kind === "gate-test") {
+      spineGroupIds.add(groupOf(r).id);
+    }
+  }
+
+  const keepGroup = (g: ChartRow): boolean => {
+    if (spineGroupIds.has(g.id)) return true; // spine shows in spine + squad views
+    if (view.kind === "squad") return g.squadId === view.squadId;
+    return false; // spine view keeps only the spine group
+  };
+
+  const keptIds = new Set<string>();
+  for (const r of model.rows) if (keepGroup(groupOf(r))) keptIds.add(r.id);
+
+  const rows = model.rows.filter((r) => keptIds.has(r.id));
+  const links = model.links.filter(
+    (l) => keptIds.has(l.sourceId) && keptIds.has(l.targetId),
+  );
+  return { ...model, rows, links };
+}
+
 /** any-blocked → blocked; all-done → done; all-not-started → not-started; else in-progress. */
 function rollupStatus(statuses: Status[]): Status {
   if (statuses.some((s) => s === "blocked")) return "blocked";

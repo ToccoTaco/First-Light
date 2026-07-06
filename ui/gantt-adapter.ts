@@ -40,6 +40,8 @@ export interface EditEvents {
   onStatusClick(id: string): void;
   /** Any edit gesture on a read-only row (spine, summary, group). */
   onReadOnlyAttempt(id: string): void;
+  /** A click on a grid row (not the tree toggle) — the app opens the side panel. */
+  onRowSelect(id: string): void;
 }
 
 export interface GanttView {
@@ -319,7 +321,13 @@ export function createGanttView(
       (id: string | number, e: MouseEvent | undefined) => {
         const target = e?.target as HTMLElement | null;
         const onBar = !!target?.closest(".gantt_task_line");
-        if (!onBar) return true; // grid row → default handling
+        if (!onBar) {
+          // Grid row click: the tree open/close arrow keeps its default toggle;
+          // anywhere else on the row opens the side panel (§8 full editor).
+          const onToggle = !!target?.closest(".gantt_tree_icon");
+          if (!onToggle) edits.onRowSelect(String(id));
+          return true; // never block default tree handling
+        }
         if (Date.now() - lastDragEnd < 300) return false; // drop, not a click
         if (edits.isEditable(String(id))) edits.onStatusClick(String(id));
         else edits.onReadOnlyAttempt(String(id));

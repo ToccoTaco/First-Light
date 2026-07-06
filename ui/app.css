@@ -499,12 +499,37 @@ body {
   color: var(--gold-text);
 }
 
+/* ── view filter + add-task (quiet, never gold) ────────────────────────────── */
+/* The §9 view control reuses the segmented vocabulary but wraps on narrow
+ * widths so the six options never overflow the toolbar. */
+.fl-view-seg {
+  flex-wrap: wrap;
+}
+.fl-add-task {
+  white-space: nowrap;
+}
+
+/* ── main row: chart + optional side panel ─────────────────────────────────── */
+/* The chart and the editor panel share a flex row so the chart RE-FLOWS (shrinks)
+ * beside the panel rather than being covered by it (§8: "chart re-flows beside
+ * it"). DHTMLX reflows on the window-resize nudge App fires when the panel opens. */
+.fl-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+}
+
 /* ── chart area ────────────────────────────────────────────────────────────── */
 .fl-chart {
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0; /* let the DHTMLX container own the scroll, not the page */
   position: relative;
   overflow: hidden; /* clip DHTMLX's square corners to the panel radius */
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 10px;
 }
 .fl-chart-inner {
   position: absolute;
@@ -545,4 +570,385 @@ body {
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 12px;
+}
+
+/* ── the full editing panel (§8) ────────────────────────────────────────────────
+ * A solid --surface-raised right-side panel. Deliberately quiet: NO gold anywhere
+ * (the toolbar Save owns the one gold on this screen); danger uses --blocked-fg,
+ * telemetry uses --text-telemetry. */
+.fl-panel {
+  flex: 0 0 340px;
+  align-self: stretch;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-hair);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.fl-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-hair);
+  position: sticky;
+  top: 0;
+  background: var(--surface-raised);
+  z-index: 1;
+}
+.fl-panel-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.fl-panel-close {
+  appearance: none;
+  border: 1px solid var(--border-hair);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.fl-panel-close:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+.fl-panel-body {
+  padding: 12px 16px 16px;
+}
+.fl-panel-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+}
+.fl-panel-note-tight {
+  margin: 0;
+}
+
+/* fields */
+.fl-panel-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+.fl-panel-field-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.fl-panel-label {
+  flex: 0 0 84px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  color: var(--text-telemetry);
+}
+.fl-panel-field-stacked .fl-panel-label {
+  flex: none;
+}
+.fl-panel-control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fl-panel-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--canvas);
+  border: 1px solid var(--border-hair);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+.fl-panel-input:focus {
+  outline: 1px solid var(--text-secondary);
+}
+.fl-panel-num {
+  width: 72px;
+  font-family: var(--font-mono);
+}
+.fl-panel-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fl-panel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fl-panel-unit {
+  font-size: 11px;
+  color: var(--text-telemetry);
+  font-family: var(--font-mono);
+}
+.fl-panel-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.fl-panel-clear {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-telemetry);
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* the panel's segmented controls (status / confidence / timing) */
+.fl-panel-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border-hair);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.fl-panel-seg button {
+  appearance: none;
+  border: none;
+  border-right: 1px solid var(--border-hair);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.fl-panel-seg button:last-child {
+  border-right: none;
+}
+.fl-panel-seg button[aria-pressed="true"] {
+  background: var(--text-primary);
+  color: var(--canvas);
+  font-weight: 500;
+}
+
+/* dependency chips + picker */
+.fl-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.fl-chip-dep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: var(--canvas);
+  border: 1px solid var(--border-hair);
+  border-radius: 6px;
+  padding: 4px 6px 4px 9px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.fl-chip-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fl-chip-adv,
+.fl-chip-x {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-telemetry);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+.fl-chip-adv:hover,
+.fl-chip-x:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.fl-chip-x {
+  font-size: 15px;
+}
+.fl-chip-pop {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 2px 2px;
+  border-top: 1px solid var(--border-hair);
+  margin-top: 4px;
+}
+
+/* the searchable dependency picker (custom listbox, not a native select) */
+.fl-dep-picker {
+  position: relative;
+}
+.fl-dep-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 7px;
+  box-shadow: 0 6px 18px var(--bar-shade);
+  padding: 4px;
+}
+.fl-dep-group + .fl-dep-group {
+  margin-top: 4px;
+  border-top: 1px solid var(--border-hair);
+  padding-top: 4px;
+}
+.fl-dep-group-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  color: var(--text-telemetry);
+  padding: 3px 8px;
+}
+.fl-dep-opt {
+  appearance: none;
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.fl-dep-opt:hover {
+  background: var(--surface-raised);
+}
+.fl-dep-empty {
+  font-size: 12px;
+  color: var(--text-telemetry);
+  padding: 6px 8px;
+}
+
+/* the inline cycle warning (blocked ink, never gold) */
+.fl-panel-warn {
+  background: linear-gradient(var(--blocked-bg), var(--blocked-bg)) var(--surface);
+  border: 1px solid var(--blocked-fg);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+/* add-task + delete (low-emphasis) */
+.fl-panel-add {
+  margin: 14px 0 4px;
+}
+.fl-panel-add-btn {
+  appearance: none;
+  width: 100%;
+  border: 1px dashed var(--border-hair);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.fl-panel-add-btn:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+.fl-panel-delete {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-hair);
+}
+.fl-panel-danger-ghost {
+  appearance: none;
+  border: 1px solid var(--border-hair);
+  background: transparent;
+  color: var(--blocked-fg);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.fl-panel-danger-ghost:hover {
+  background: var(--blocked-bg);
+}
+.fl-panel-danger {
+  appearance: none;
+  border: 1px solid var(--blocked-fg);
+  background: var(--blocked-fg);
+  color: var(--text-on-accent);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+/* read-only value + telemetry readout */
+.fl-ro {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.fl-tel {
+  font-family: var(--font-mono);
+  color: var(--text-telemetry);
+}
+.fl-panel-tel {
+  margin-top: 4px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border-hair);
+}
+.fl-panel-tel-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: var(--font-mono);
+  color: var(--text-telemetry);
+  margin-bottom: 8px;
+}
+.fl-tel-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+.fl-tel-grid dt {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+.fl-tel-grid dd {
+  margin: 0;
+  font-size: 12px;
+  text-align: right;
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyTaskEdit, addTask, removeTask } from "./serialize";
-import { parseTaskFile } from "./parse-file";
+import { parseTaskFile, parseProjectFile } from "./parse-file";
 import { validateTask } from "./validate";
 import type { Task } from "../engine/types";
 
@@ -135,5 +135,116 @@ describe("removeTask", () => {
     const { tasks, issues } = parseTaskFile("x.yaml", out);
     expect(issues).toEqual([]);
     expect(tasks).toHaveLength(1);
+  });
+});
+
+// ── the sanctioned storage extension: spine-file (reviews:/gates:) edits ──────────
+//
+// project.yaml holds the spine in `reviews:` and `gates:` lists, not `tasks:`.
+// applyTaskEdit/removeTask locate a task across all three, so the full editor can
+// edit a review's dependsOn / status / pinned date with the same comment-
+// preserving, minimal-diff guarantee. This fixture is project.yaml-shaped.
+
+const SPINE_FIXTURE = `# project.yaml — the team lead owns this file.
+project: "First Light"
+
+squads:
+  - { id: engines, name: Engines, color: "#D85A30" }
+  - { id: fluids, name: Fluids, color: "#378ADD" }
+
+reviews:
+  # Preliminary Design Review
+  - id: review.pdr
+    name: "Preliminary Design Review (PDR)"
+    milestone: true
+    gate: review
+    dependsOn: [ engines.prelim-design, fluids.prelim-design ]
+
+  - id: review.cdr
+    name: "Critical Design Review (CDR)"
+    milestone: true
+    gate: review
+    dependsOn: [ review.pdr ]
+
+gates:
+  - id: gate.engine-hotfire
+    name: "First engine hotfire"
+    milestone: true
+    gate: test
+    dependsOn: [ review.pdr ]
+`;
+
+describe("applyTaskEdit on spine lists (reviews:/gates:)", () => {
+  it("edits a review's dependsOn, leaving every other line byte-identical", () => {
+    const out = applyTaskEdit(SPINE_FIXTURE, "review.pdr", {
+      dependsOn: ["engines.prelim-design", "fluids.prelim-design", "structures.prelim-design"],
+    });
+    expect(out).toBe(
+      SPINE_FIXTURE.replace(
+        "dependsOn: [ engines.prelim-design, fluids.prelim-design ]",
+        "dependsOn: [ engines.prelim-design, fluids.prelim-design, structures.prelim-design ]",
+      ),
+    );
+    // comments + the other spine items are untouched.
+    expect(out).toContain("# Preliminary Design Review");
+    expect(out).toContain('name: "Critical Design Review (CDR)"');
+  });
+
+  it("adds a status field to a review without disturbing its neighbours", () => {
+    const out = applyTaskEdit(SPINE_FIXTURE, "review.cdr", {
+      status: "in-progress" as Task["status"],
+    });
+    expect(out).toMatch(/id: review\.cdr[\s\S]*status: in-progress/);
+    // The gate below and the review above keep their exact text.
+    expect(out).toContain("- id: gate.engine-hotfire");
+    expect(out).toContain("dependsOn: [ review.pdr ]");
+  });
+
+  it("pins a review to a real date by writing its schedule map", () => {
+    const out = applyTaskEdit(SPINE_FIXTURE, "review.pdr", {
+      schedule: { mode: "pinned", start: "2026-11-01" } as Task["schedule"],
+    });
+    expect(out).toMatch(
+      /id: review\.pdr[\s\S]*schedule:[\s\S]*mode: pinned[\s\S]*start: 2026-11-01/,
+    );
+    const { spineTasks, issues } = parseProjectFile("data/project.yaml", out);
+    expect(issues).toEqual([]);
+    const pdr = spineTasks
+      .map((raw) => validateTask(raw, "data/project.yaml").task)
+      .find((t) => t?.id === "review.pdr");
+    expect(pdr?.schedule).toEqual({ mode: "pinned", start: "2026-11-01" });
+  });
+
+  it("edits a gate in the gates: list", () => {
+    const out = applyTaskEdit(SPINE_FIXTURE, "gate.engine-hotfire", {
+      status: "not-started" as Task["status"],
+    });
+    expect(out).toMatch(/id: gate\.engine-hotfire[\s\S]*status: not-started/);
+  });
+
+  it("an undefined value clears a spine key (undefined-deletes)", () => {
+    // First set a status, then clear it — the key must vanish from that block.
+    const withStatus = applyTaskEdit(SPINE_FIXTURE, "review.cdr", {
+      status: "done" as Task["status"],
+    });
+    expect(withStatus).toContain("status: done");
+    const cleared = applyTaskEdit(withStatus, "review.cdr", { status: undefined });
+    const cdrBlock = cleared.slice(
+      cleared.indexOf("review.cdr"),
+      cleared.indexOf("gates:"),
+    );
+    expect(cdrBlock).not.toContain("status:");
+  });
+});
+
+describe("removeTask on spine lists", () => {
+  it("removes a gate from the gates: list, keeping the reviews intact", () => {
+    const out = removeTask(SPINE_FIXTURE, "gate.engine-hotfire");
+    expect(out).not.toContain("gate.engine-hotfire");
+    expect(out).toContain("id: review.pdr");
+    expect(out).toContain("id: review.cdr");
+    const { spineTasks, issues } = parseProjectFile("data/project.yaml", out);
+    expect(issues).toEqual([]);
+    expect(spineTasks).toHaveLength(2); // both reviews remain, the gate is gone
   });
 });

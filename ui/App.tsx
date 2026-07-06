@@ -29,7 +29,7 @@ import type {
   Task,
 } from "../engine/types";
 import { mergeProject, type SourceFile } from "../storage/merge";
-import type { DataIssue, ProjectData } from "../storage/types";
+import type { DataIssue, ProjectData, Squad } from "../storage/types";
 import {
   loadFile,
   saveFile,
@@ -41,20 +41,32 @@ import {
   setSettings,
   type GitHubSettings,
 } from "../storage/settings";
-import { buildChartModel, type ChartModel, type ChartRow } from "./chart-model";
+import {
+  buildChartModel,
+  filterChartModel,
+  type ChartModel,
+  type ChartRow,
+  type ChartView,
+} from "./chart-model";
 import {
   accumulate,
-  applyPatchesToTasks,
-  dirtyCount,
+  applyEditsToTasks,
+  editDirtyCount,
   fileForTaskId,
   isEditable as isEditableRow,
+  makeTaskId,
   movePatch,
+  newSquadTask,
   nextStatus,
+  removeTaskFromState,
   resizePatch,
   saveAll,
+  squadOfTaskId,
   type PatchMap,
   type TaskPatch,
 } from "./edit-model";
+import { NEUTRAL_COLOR } from "./chart-model";
+import { EditPanel } from "./edit-panel";
 import {
   createGanttView,
   type EditEvents,
@@ -112,6 +124,20 @@ const STATUS_WORD: Record<Status, string> = {
   blocked: "Blocked",
   done: "Done",
 };
+
+// ── view filter persistence (§9: the view remembers, "default = own squad") ──────
+const VIEW_KEY = "fl-view";
+/** Serialize a ChartView to a stable localStorage token. */
+function viewToken(v: ChartView): string {
+  return v.kind === "squad" ? `squad:${v.squadId}` : v.kind;
+}
+/** Parse a stored token back to a ChartView (unknown → everything, first-run). */
+function parseView(token: string | null): ChartView {
+  if (token === "spine") return { kind: "spine" };
+  if (token && token.startsWith("squad:"))
+    return { kind: "squad", squadId: token.slice("squad:".length) };
+  return { kind: "everything" };
+}
 
 interface Ready {
   status: "ready";
@@ -185,6 +211,12 @@ interface Working {
 export default function App() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [patches, setPatches] = useState<PatchMap>({});
+  const [added, setAdded] = useState<Task[]>([]);
+  const [removed, setRemoved] = useState<string[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<ChartView>(() =>
+    parseView(window.localStorage.getItem(VIEW_KEY)),
+  );
   const [saving, setSaving] = useState(false);
   const [saveIssues, setSaveIssues] = useState<SaveIssue[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -240,7 +272,7 @@ export default function App() {
     if (state.status !== "ready") return null;
     const merged = mergeProject(state.files, todayRef.current);
     const issues = [...merged.issues, ...state.fetchIssues];
-    const tasks = applyPatchesToTasks(merged.tasks, patches);
+    const tasks = applyEditsToTasks(merged.tasks, { patches, added, removed });
     const project: ProjectData = { ...merged, tasks, issues };
     const schedule = computeSchedule(tasks, project.config);
     const model = buildChartModel(project, schedule);
@@ -252,7 +284,7 @@ export default function App() {
       taskById: new Map(tasks.map((t) => [t.id, t])),
       squadIds: project.squads.map((s) => s.id),
     };
-  }, [state, patches]);
+  }, [state, patches, added, removed]);
 
   // The adapter's edit events are created ONCE and read the latest working
   // state through this ref — the DHTMLX view survives every re-render.
@@ -292,23 +324,94 @@ export default function App() {
         showToast(`${nameOf(id)} → ${STATUS_WORD[next]} — unsaved`);
       },
       onReadOnlyAttempt(id) {
+        // A drag on a bar the quick tier won't move — nudge toward the panel,
+        // which now DOES edit spine gates, summaries roll up, etc.
         const kind = workingRef.current?.rowById.get(id)?.kind;
-        if (kind === "gate-review" || kind === "gate-test") {
+        if (kind === "summary" || kind === "group") {
           showToast(
-            "Reviews and gates are read-only here — the full editor covers them next.",
+            "Summary rows roll up from their tasks — open a task beneath to edit.",
           );
         } else {
-          showToast(
-            "Summary rows roll up from their tasks — edit the tasks beneath.",
-          );
+          showToast("Open the side panel (click the row) to edit this.");
         }
+      },
+      onRowSelect(id) {
+        setSelectedId(id);
       },
     };
   }, []);
 
-  const model = working?.model ?? null;
-  const hasChart = !!model && model.hasSchedule && model.rows.length > 0;
+  // The chart draws the FILTERED model (§9 squad/spine/everything views); the
+  // panel and dirty state read the FULL working model, so a filtered-out task
+  // still edits and still saves.
+  const model = useMemo(
+    () => (working ? filterChartModel(working.model, view) : null),
+    [working, view],
+  );
+  const hasChart = !!model && working!.model.hasSchedule && model.rows.length > 0;
   const modelRef = useRef<ChartModel | null>(null);
+
+  // The panel opens on the model row when present, or — when a cycle has blanked
+  // the schedule so no rows exist — on a minimal row synthesized from the task,
+  // so the loop-causing chip stays reachable and removable.
+  const selectedRow: ChartRow | undefined = useMemo(() => {
+    if (selectedId === null || !working) return undefined;
+    const real = working.rowById.get(selectedId);
+    if (real) return real;
+    const t = working.taskById.get(selectedId);
+    if (!t) return undefined;
+    const squadId = squadOfTaskId(t.id, working.squadIds);
+    const kind: ChartRow["kind"] =
+      t.gate === "review"
+        ? "gate-review"
+        : t.gate === "test"
+          ? "gate-test"
+          : t.milestone
+            ? "milestone"
+            : "task";
+    return {
+      id: t.id,
+      name: t.name,
+      parentId: null,
+      startISO: "",
+      endISO: "",
+      kind,
+      squadId,
+      squadColor: NEUTRAL_COLOR,
+      critical: false,
+      slack: 0,
+      status: t.status ?? "not-started",
+      percent: t.percent ?? 0,
+      confidence: t.confidence,
+      isOpen: true,
+    };
+  }, [selectedId, working]);
+  const panelOpen = !!selectedRow;
+
+  // Esc closes the panel.
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [panelOpen]);
+
+  // The chart container width changes when the panel opens/closes; DHTMLX reflows
+  // on a window resize event, so nudge it (next frame, after layout settles).
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() =>
+      window.dispatchEvent(new Event("resize")),
+    );
+    return () => window.cancelAnimationFrame(id);
+  }, [panelOpen]);
+
+  // Persist the view selection so it's remembered next visit (§9).
+  const onView = (v: ChartView) => {
+    setView(v);
+    window.localStorage.setItem(VIEW_KEY, viewToken(v));
+  };
 
   // Create / tear down the DHTMLX view when a chart appears/disappears; edits
   // re-render the SAME view (scroll preserved) via the model effect below.
@@ -336,13 +439,38 @@ export default function App() {
 
   // ── save / discard ───────────────────────────────────────────────────────────
 
-  const dirty = dirtyCount(patches);
+  const dirty = editDirtyCount({ patches, added, removed });
   const hasToken = !!ghSettings?.token.trim();
 
   const onDiscard = () => {
     setPatches({});
+    setAdded([]);
+    setRemoved([]);
+    setSelectedId(null);
     setSaveIssues([]);
     showToast("Unsaved changes discarded");
+  };
+
+  // ── panel edit callbacks (instant-apply into working state) ──────────────────
+  const onPanelPatch = (id: string, patch: TaskPatch) =>
+    setPatches((prev) => accumulate(prev, id, patch));
+
+  const onAddTask = (squadId: string) => {
+    const existing = new Set(workingRef.current?.taskById.keys() ?? []);
+    const name = "New task";
+    const id = makeTaskId(squadId, name, existing);
+    setAdded((a) => [...a, newSquadTask(id, name)]);
+    setSelectedId(id);
+    showToast(`Added a task to ${squadId} — refine it in the panel`);
+  };
+
+  const onDeleteTask = (id: string) => {
+    const next = removeTaskFromState({ patches, added, removed }, id);
+    setPatches(next.patches);
+    setAdded(next.added);
+    setRemoved(next.removed);
+    setSelectedId(null);
+    showToast("Task deleted — unsaved");
   };
 
   const onSave = async () => {
@@ -360,6 +488,8 @@ export default function App() {
     const outcome = await saveAll(
       {
         patches,
+        added,
+        removed,
         originalTexts,
         squadIds: working.squadIds,
         target: { owner: s.owner, repo: s.repo, branch: s.branch },
@@ -402,6 +532,8 @@ export default function App() {
             }
           : prev,
       );
+      // Clear only what committed: patches, added tasks, and removed ids whose
+      // ids were covered by a successful file save. The rest stays dirty.
       setPatches((prev) => {
         const next: PatchMap = {};
         for (const [id, p] of Object.entries(prev)) {
@@ -409,6 +541,8 @@ export default function App() {
         }
         return next;
       });
+      setAdded((prev) => prev.filter((t) => !savedTaskIds.has(t.id)));
+      setRemoved((prev) => prev.filter((id) => !savedTaskIds.has(id)));
     }
     setSaveIssues(failures);
     if (failures.length === 0) {
@@ -432,14 +566,16 @@ export default function App() {
           }
         : prev,
     );
+    const squadIds = workingRef.current?.squadIds ?? [];
     setPatches((prev) => {
-      const squadIds = workingRef.current?.squadIds ?? [];
       const next: PatchMap = {};
       for (const [id, p] of Object.entries(prev)) {
         if (fileForTaskId(id, squadIds) !== path) next[id] = p;
       }
       return next;
     });
+    setAdded((prev) => prev.filter((t) => fileForTaskId(t.id, squadIds) !== path));
+    setRemoved((prev) => prev.filter((id) => fileForTaskId(id, squadIds) !== path));
     setSaveIssues((prev) => prev.filter((i) => i.path !== path));
     showToast(`${baseName(path)} reloaded from GitHub — re-apply your edits`);
   };
@@ -494,6 +630,10 @@ export default function App() {
       <Toolbar
         zoom={zoom}
         onZoom={onZoom}
+        view={view}
+        onView={onView}
+        squads={project.squads}
+        onAddTask={onAddTask}
         dirty={dirty}
         saving={saving}
         hasToken={hasToken}
@@ -507,22 +647,39 @@ export default function App() {
         onDismiss={onDismissIssue}
       />
       <Banner issues={project.issues} conflicts={schedule.conflicts} />
-      {hasChart ? (
-        <div className="fl-chart">
-          <div className="fl-chart-inner" ref={containerRef} />
-        </div>
-      ) : (
-        <div className="fl-state">
-          <div className="fl-card">
-            <h2>The schedule can't be drawn yet</h2>
-            <p>
-              A conflict in the plan is blocking the whole schedule. See the
-              banner above for the exact fix — once it's resolved the chart comes
-              back automatically.
-            </p>
+      <div className={`fl-main${panelOpen ? " fl-main-panel" : ""}`}>
+        {hasChart ? (
+          <div className="fl-chart">
+            <div className="fl-chart-inner" ref={containerRef} />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="fl-state">
+            <div className="fl-card">
+              <h2>The schedule can't be drawn yet</h2>
+              <p>
+                A conflict in the plan is blocking the whole schedule. See the
+                banner above for the exact fix — once it's resolved the chart
+                comes back automatically.
+              </p>
+            </div>
+          </div>
+        )}
+        {panelOpen && working && selectedId && selectedRow && (
+          <EditPanel
+            row={selectedRow}
+            task={working.taskById.get(selectedId)}
+            sched={working.schedule.tasks[selectedId]}
+            allTasks={working.project.tasks}
+            squads={working.project.squads}
+            squadIds={working.squadIds}
+            conflicts={working.schedule.conflicts}
+            onPatch={onPanelPatch}
+            onAdd={onAddTask}
+            onDelete={onDeleteTask}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
+      </div>
       {toast && <div className="fl-toast">{toast}</div>}
       {settingsOpen && (
         <SettingsModal
@@ -595,6 +752,10 @@ const ZOOMS: { id: Zoom; label: string }[] = [
 function Toolbar({
   zoom,
   onZoom,
+  view,
+  onView,
+  squads,
+  onAddTask,
   dirty,
   saving,
   hasToken,
@@ -603,6 +764,10 @@ function Toolbar({
 }: {
   zoom: Zoom;
   onZoom: (z: Zoom) => void;
+  view: ChartView;
+  onView: (v: ChartView) => void;
+  squads: Squad[];
+  onAddTask: (squadId: string) => void;
   dirty: number;
   saving: boolean;
   hasToken: boolean;
@@ -610,6 +775,7 @@ function Toolbar({
   onDiscard: () => void;
 }) {
   const canSave = dirty > 0 && hasToken && !saving;
+  const activeToken = view.kind === "squad" ? `squad:${view.squadId}` : view.kind;
   return (
     <div className="fl-toolbar">
       <div className="fl-seg" role="group" aria-label="Zoom level">
@@ -623,6 +789,40 @@ function Toolbar({
           </button>
         ))}
       </div>
+      {/* §9 view filter: Spine · one per squad · Everything. Quiet — no gold. */}
+      <div className="fl-seg fl-view-seg" role="group" aria-label="View">
+        <button
+          aria-pressed={activeToken === "spine"}
+          onClick={() => onView({ kind: "spine" })}
+        >
+          Spine
+        </button>
+        {squads.map((s) => (
+          <button
+            key={s.id}
+            aria-pressed={activeToken === `squad:${s.id}`}
+            onClick={() => onView({ kind: "squad", squadId: s.id })}
+          >
+            {s.name}
+          </button>
+        ))}
+        <button
+          aria-pressed={activeToken === "everything"}
+          onClick={() => onView({ kind: "everything" })}
+        >
+          Everything
+        </button>
+      </div>
+      {view.kind === "squad" && (
+        <button
+          type="button"
+          className="fl-discard fl-add-task"
+          onClick={() => onAddTask(view.squadId)}
+          title="Add a task to this squad"
+        >
+          + Add task
+        </button>
+      )}
       {/* The legend is the STATE vocabulary (§7); squad identity lives in the
           grid chips, not here. Ordered from the gold thread outward to quiet. */}
       <div className="fl-legend">

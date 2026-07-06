@@ -4,7 +4,12 @@ import { computeSchedule } from "../engine";
 import type { Task, Config, ScheduleResult } from "../engine/types";
 import { mergeProject, type SourceFile } from "../storage/merge";
 import type { ProjectData, Squad } from "../storage/types";
-import { buildChartModel, nextGateId, NEUTRAL_COLOR } from "./chart-model";
+import {
+  buildChartModel,
+  filterChartModel,
+  nextGateId,
+  NEUTRAL_COLOR,
+} from "./chart-model";
 
 // buildChartModel is pure, so every test here is: assemble a ProjectData, run
 // the real engine over it, and assert the resulting ChartModel. The DHTMLX
@@ -346,5 +351,74 @@ describe("empty schedule", () => {
     expect(model.links).toEqual([]);
     expect(model.hasSchedule).toBe(false);
     expect(model.markers.todayISO).toBe(NOW); // markers still present
+  });
+});
+
+// ── squad filtering (§9): filterChartModel ─────────────────────────────────────
+
+describe("filterChartModel", () => {
+  // A graph with a spine gate fed by two squads + an unclaimed orphan.
+  const gate: Task = {
+    id: "review.pdr",
+    name: "PDR",
+    milestone: true,
+    gate: "review",
+    schedule: { mode: "auto", duration: 0 },
+    dependsOn: ["engines.a", "fluids.a"],
+  };
+  const tasks: Task[] = [
+    auto("engines.a", 5),
+    auto("fluids.a", 5),
+    auto("orphan.x", 5), // no matching squad → the "Other" group
+    gate,
+  ];
+  const built = () => {
+    const p = project(tasks);
+    const schedule = computeSchedule(p.tasks, p.config);
+    return buildChartModel(p, schedule);
+  };
+  const groupNames = (m: ReturnType<typeof built>) =>
+    m.rows.filter((r) => r.kind === "group").map((r) => r.name);
+
+  it("everything: returns the model unchanged", () => {
+    const m = built();
+    expect(filterChartModel(m, { kind: "everything" })).toBe(m);
+  });
+
+  it("spine: keeps ONLY the mission spine group + its gates", () => {
+    const m = filterChartModel(built(), { kind: "spine" });
+    expect(groupNames(m)).toEqual(["Mission spine"]);
+    expect(m.rows.some((r) => r.id === "review.pdr")).toBe(true);
+    expect(m.rows.some((r) => r.id === "engines.a")).toBe(false);
+    expect(m.rows.some((r) => r.id === "orphan.x")).toBe(false);
+  });
+
+  it("squad: keeps the spine group PLUS that squad's group, nothing else", () => {
+    const m = filterChartModel(built(), { kind: "squad", squadId: "engines" });
+    expect(groupNames(m)).toEqual(["Mission spine", "Engines"]);
+    expect(m.rows.some((r) => r.id === "engines.a")).toBe(true);
+    expect(m.rows.some((r) => r.id === "fluids.a")).toBe(false); // other squad gone
+    expect(m.rows.some((r) => r.id === "orphan.x")).toBe(false); // Other gone
+  });
+
+  it("prunes links whose endpoints aren't both visible", () => {
+    const full = built();
+    // The full model links engines.a → review.pdr and fluids.a → review.pdr.
+    expect(full.links.length).toBeGreaterThanOrEqual(2);
+    const m = filterChartModel(full, { kind: "squad", squadId: "engines" });
+    // fluids.a is gone, so its link is pruned; engines.a → review.pdr survives.
+    expect(m.links.some((l) => l.sourceId === "fluids.a")).toBe(false);
+    expect(
+      m.links.some(
+        (l) => l.sourceId === "engines.a" && l.targetId === "review.pdr",
+      ),
+    ).toBe(true);
+  });
+
+  it("leaves markers and nextGateId untouched", () => {
+    const full = built();
+    const m = filterChartModel(full, { kind: "spine" });
+    expect(m.markers).toEqual(full.markers);
+    expect(m.nextGateId).toBe(full.nextGateId);
   });
 });

@@ -47,12 +47,21 @@ export function applyTaskEdit(
     const path = [...base, key];
 
     // schedule: merge into the existing map rather than replacing it wholesale,
-    // so a duration change stays a single-scalar change on a single line.
+    // so a duration change stays a single-scalar change on a single line. When
+    // there's no schedule map yet (a spine review is unpinned in project.yaml and
+    // carries none), create it as a real node in one shot — there are no comments
+    // or key order to preserve, and setIn'ing keys into a bare `{}` would fail.
     if (key === "schedule" && isPlainObject(val)) {
-      if (!doc.hasIn(path)) doc.setIn(path, {});
-      for (const [k, v] of Object.entries(val)) {
-        if (v === undefined) doc.deleteIn([...path, k]);
-        else doc.setIn([...path, k], v);
+      if (!doc.hasIn(path)) {
+        const fresh = Object.fromEntries(
+          Object.entries(val).filter(([, v]) => v !== undefined),
+        );
+        doc.setIn(path, doc.createNode(fresh));
+      } else {
+        for (const [k, v] of Object.entries(val)) {
+          if (v === undefined) doc.deleteIn([...path, k]);
+          else doc.setIn([...path, k], v);
+        }
       }
       continue;
     }
