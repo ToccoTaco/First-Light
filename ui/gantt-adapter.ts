@@ -24,6 +24,24 @@ import type { ChartModel, ChartRow } from "./chart-model";
 
 export type Zoom = "week" | "month" | "quarter";
 
+/**
+ * Quick-edit events (Phase 3.2), decided and handled by the APP — the adapter
+ * only reports gestures. `isEditable` is the app's pure edit-model decision;
+ * rows it refuses get `readonly: true` (no drag affordance) and their clicks
+ * surface `onReadOnlyAttempt` so the refusal is polite, never silent.
+ */
+export interface EditEvents {
+  isEditable(id: string): boolean;
+  /** A bar (or milestone) was dropped at a new start date. */
+  onMove(id: string, newStartISO: string): void;
+  /** A bar edge was dragged to a new length (whole calendar days, ≥ 1). */
+  onResize(id: string, newDurationDays: number): void;
+  /** A single click on an editable bar — the app cycles the status. */
+  onStatusClick(id: string): void;
+  /** Any edit gesture on a read-only row (spine, summary, group). */
+  onReadOnlyAttempt(id: string): void;
+}
+
 export interface GanttView {
   render(model: ChartModel, zoom?: Zoom): void;
   setZoom(zoom: Zoom): void;
@@ -79,7 +97,10 @@ const flOf = (t: DHXTask): DHXTask & FLFields => t as DHXTask & FLFields;
 const isDiamond = (kind: ChartRow["kind"]): boolean =>
   kind === "milestone" || kind === "gate-review" || kind === "gate-test";
 
-export function createGanttView(container: HTMLElement): GanttView {
+export function createGanttView(
+  container: HTMLElement,
+  edits?: EditEvents,
+): GanttView {
   const gantt = Gantt.getGanttInstance();
 
   // Borrow pixels only — the engine owns scheduling. Auto-scheduling / critical
@@ -89,7 +110,24 @@ export function createGanttView(container: HTMLElement): GanttView {
   // posFromDate (the fallback the brief anticipated).
   gantt.plugins({ tooltip: true });
 
-  gantt.config.readonly = true;
+  // ── editing surface (Phase 3.2) ──────────────────────────────────────────────
+  // Global readonly OFF only when the app wires edit events; the ONLY enabled
+  // gestures are drag-to-move and drag-to-resize. Everything else the library
+  // offers stays off for good: drag_links (dependencies are 3.3's picker),
+  // drag_progress (percent is panel territory), details_on_dblclick (no DHTMLX
+  // lightbox EVER — we build our own panel in 3.3), select_task (a click means
+  // "cycle status", not "select"). Its auto-scheduler is never enabled; every
+  // date the chart shows comes from OUR engine re-running after each edit.
+  gantt.config.readonly = !edits;
+  gantt.config.drag_move = true;
+  gantt.config.drag_resize = true;
+  gantt.config.drag_links = false;
+  gantt.config.drag_progress = false;
+  gantt.config.details_on_dblclick = false;
+  gantt.config.select_task = false;
+  // Snap drags to whole days ourselves (below), not to the zoom's grid cell —
+  // otherwise month view would snap a drop to week boundaries and lie about it.
+  gantt.config.round_dnd_dates = false;
   gantt.config.date_format = "%Y-%m-%d"; // how our ISO strings are parsed
   // 22px bars in 34px rows: DHTMLX centres the bar, leaving ~6px of air above
   // and below — breathing room so rows read separately (user feedback), not
@@ -246,6 +284,50 @@ export function createGanttView(container: HTMLElement): GanttView {
     return out.join("");
   };
 
+  // ── edit gestures → app events ──────────────────────────────────────────────
+  if (edits) {
+    // Belt-and-suspenders veto: read-only rows also carry `readonly: true` (set
+    // in render, which hides the drag affordance), but if a drag somehow starts
+    // we refuse it here and surface the polite notice.
+    gantt.attachEvent("onBeforeTaskDrag", (id: string | number) => {
+      if (edits.isEditable(String(id))) return true;
+      edits.onReadOnlyAttempt(String(id));
+      return false;
+    });
+
+    let lastDragEnd = 0; // suppress the synthetic click that follows a drop
+    gantt.attachEvent("onAfterTaskDrag", (id: string | number, mode: string) => {
+      lastDragEnd = Date.now();
+      const task = gantt.getTask(id);
+      if (mode === "move") {
+        edits.onMove(String(id), nearestDayISO(task.start_date as Date));
+      } else if (mode === "resize") {
+        // Whole-day duration from the dragged span. Either edge maps to the
+        // same honest patch: "this task now takes N days" (§8 quick tier).
+        const ms =
+          (task.end_date as Date).getTime() -
+          (task.start_date as Date).getTime();
+        edits.onResize(String(id), Math.max(1, Math.round(ms / 86_400_000)));
+      }
+    });
+
+    // §8: one click on a BAR cycles status. Grid clicks keep their default
+    // behaviour (tree expand/collapse); bar clicks never select — selection is
+    // off and the click is consumed here. The hover tooltip is untouched.
+    gantt.attachEvent(
+      "onTaskClick",
+      (id: string | number, e: MouseEvent | undefined) => {
+        const target = e?.target as HTMLElement | null;
+        const onBar = !!target?.closest(".gantt_task_line");
+        if (!onBar) return true; // grid row → default handling
+        if (Date.now() - lastDragEnd < 300) return false; // drop, not a click
+        if (edits.isEditable(String(id))) edits.onStatusClick(String(id));
+        else edits.onReadOnlyAttempt(String(id));
+        return false;
+      },
+    );
+  }
+
   let initialised = false;
   let currentZoom: Zoom = "month";
   let markerData: ChartModel["markers"] | null = null;
@@ -296,13 +378,22 @@ export function createGanttView(container: HTMLElement): GanttView {
   const render = (model: ChartModel, zoom?: Zoom) => {
     if (zoom) currentZoom = zoom;
     applyScales(currentZoom);
+    // Re-renders now happen live after every edit (the auto-reschedule magic),
+    // so the scroll position must survive the clearAll/parse round-trip.
+    const scroll = initialised ? gantt.getScrollState() : null;
     if (!initialised) {
       gantt.init(container);
       initialised = true;
     }
     gantt.clearAll();
     const payload = {
-      data: model.rows.map((r) => toGanttTask(r, model.nextGateId)),
+      data: model.rows.map((r) => {
+        const raw = toGanttTask(r, model.nextGateId);
+        // Per-row lock: rows the app refuses (spine gates, summaries, groups)
+        // get DHTMLX's own readonly flag, which hides the drag affordance.
+        if (!edits || !edits.isEditable(r.id)) raw.readonly = true;
+        return raw;
+      }),
       links: model.links.map((l) => ({
         id: l.id,
         source: l.sourceId,
@@ -312,6 +403,7 @@ export function createGanttView(container: HTMLElement): GanttView {
       })),
     };
     gantt.parse(payload as Parameters<typeof gantt.parse>[0]);
+    if (scroll) gantt.scrollTo(scroll.x, scroll.y);
     markerData = model.markers;
     drawMarkers();
   };
@@ -343,6 +435,18 @@ interface RawGanttTask extends FLFields {
   open: boolean;
   progress: number;
   color?: string;
+  readonly?: boolean; // per-row lock (spine / summaries / groups in 3.2)
+}
+
+/**
+ * A dropped drag lands on arbitrary clock time (round_dnd_dates is off so the
+ * zoom grid never lies); we snap to the NEAREST local midnight — add 12h, take
+ * the date — because our whole data model speaks calendar days.
+ */
+function nearestDayISO(d: Date): string {
+  const shifted = new Date(d.getTime() + 12 * 3_600_000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${shifted.getFullYear()}-${p(shifted.getMonth() + 1)}-${p(shifted.getDate())}`;
 }
 
 function toGanttTask(row: ChartRow, nextGateId: string | null): RawGanttTask {

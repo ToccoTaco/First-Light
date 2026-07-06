@@ -239,6 +239,211 @@ body {
   color: var(--gold-text);
 }
 
+/* ── header actions (Settings + mode toggle, both quiet) ───────────────────── */
+.fl-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* ── save area (§8 / DESIGN §1) ────────────────────────────────────────────────
+ * The Save button is THE one gold element on this screen — the single primary
+ * action. Everything around it is deliberately quiet: the dirty note is dim
+ * mono telemetry, Discard is a hairline ghost, the no-token hint is plain
+ * secondary text. Gold appears exactly once, and only when it can act. */
+.fl-save-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+.fl-dirty-note {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-telemetry);
+  white-space: nowrap;
+}
+.fl-save-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.fl-discard {
+  appearance: none;
+  border: 1px solid var(--border-hair);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.fl-discard:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+/* Gold fill + ink text (§2: gold is a FILL, so it works in both modes). */
+.fl-save {
+  appearance: none;
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--text-on-gold); /* ink on gold — legible on the gold fill in both modes */
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 7px 18px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.fl-save:hover:not(:disabled) {
+  background: var(--gold-glow);
+  border-color: var(--gold-glow);
+}
+/* Disabled = quiet, no gold: gold only appears when the action can act. */
+.fl-save:disabled {
+  background: transparent;
+  border: 1px solid var(--border-hair);
+  color: var(--text-telemetry);
+  cursor: default;
+}
+
+/* ── save-error panel (plain-language GitHub failures) ─────────────────────── */
+.fl-save-errors {
+  background: linear-gradient(var(--blocked-bg), var(--blocked-bg)) var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 10px;
+  font-size: 13px;
+}
+.fl-save-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 20px;
+  color: var(--text-primary);
+}
+.fl-save-error + .fl-save-error {
+  border-top: 1px solid var(--border-hair);
+}
+.fl-save-error-text b {
+  color: var(--blocked-fg);
+  font-weight: 500;
+}
+.fl-save-error-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* ── toast (quiet, mono, bottom-right — the magic is the chart moving) ─────── */
+.fl-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  z-index: 40;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-hair);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  box-shadow: 0 4px 12px var(--bar-shade);
+  max-width: 420px;
+}
+
+/* ── settings modal (quiet; no gold — Save on the toolbar owns gold) ───────── */
+.fl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fl-modal {
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 10px;
+  padding: 20px 24px;
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  box-shadow: 0 8px 28px var(--bar-shade);
+}
+.fl-modal h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.fl-modal-note {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.fl-modal-note a {
+  /* NOT gold: Save on the toolbar is this screen's one gold element (§1/§8).
+   * A quiet underline is affordance enough inside a settings modal. */
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.fl-modal-note b {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.fl-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.fl-field span {
+  flex: 0 0 64px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.fl-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--canvas);
+  border: 1px solid var(--border-hair);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono); /* owner/repo/branch/token are identifiers */
+  font-size: 12px;
+  padding: 7px 9px;
+}
+.fl-field input:focus {
+  outline: 1px solid var(--text-secondary);
+}
+.fl-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+/* Primary-but-not-gold: the inverted chip (same vocabulary as the zoom seg). */
+.fl-modal-save {
+  appearance: none;
+  border: 1px solid var(--text-primary);
+  background: var(--text-primary);
+  color: var(--canvas);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 7px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
 /* ── banner ────────────────────────────────────────────────────────────────── */
 .fl-banner {
   /* Alert tint LAYERED over solid --surface: --blocked-bg is translucent in
