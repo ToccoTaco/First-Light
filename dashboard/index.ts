@@ -1,9 +1,14 @@
-// dashboard/index.ts — the landing view (Phase 4). Placeholder for now.
+// dashboard/index.ts — the landing view's barrel (Phase 4).
 //
-// Responsibilities when built:
-//   - countdown to the next gate
-//   - per-squad + overall progress rollups from status buckets
-//   - the single baseline slippage headline number
-//   - blocked items + git-derived staleness flags, surfaced prominently
+// The dashboard is two layers, mirroring the chart's discipline:
+//   - dashboard-model.ts — the PURE brain: countdown, rollups, slippage,
+//     critical summary, blocked list, staleness. No DOM, no React, no network.
+//   - Dashboard.tsx      — a thin renderer of that model.
 
-export {};
+export { Dashboard } from "./Dashboard";
+export {
+  buildDashboard,
+  baselineScheduleFromMeta,
+  dayDiff,
+  type DashboardModel,
+} from "./dashboard-model";

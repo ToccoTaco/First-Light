@@ -71,6 +71,7 @@ import {
   createGanttView,
   type EditEvents,
   type GanttView,
+  type GhostBar,
   type Zoom,
 } from "./gantt-adapter";
 import {
@@ -80,6 +81,13 @@ import {
   resolveMode,
   type Mode,
 } from "./mode";
+import { loadMeta, type Meta } from "../storage/meta";
+import {
+  Dashboard,
+  baselineScheduleFromMeta,
+  buildDashboard,
+  type DashboardModel,
+} from "../dashboard";
 import "./app.css";
 
 // The manifest is a constant: project file first (its order is the tie-breaker
@@ -137,6 +145,14 @@ function parseView(token: string | null): ChartView {
   if (token && token.startsWith("squad:"))
     return { kind: "squad", squadId: token.slice("squad:".length) };
   return { kind: "everything" };
+}
+
+// ── screen persistence (Phase 4): Dashboard | Chart, dashboard is the landing ──
+const SCREEN_KEY = "fl-screen";
+type Screen = "dashboard" | "chart";
+/** Parse a stored token to a Screen — anything unknown lands on the dashboard. */
+function parseScreen(token: string | null): Screen {
+  return token === "chart" ? "chart" : "dashboard";
 }
 
 interface Ready {
@@ -217,6 +233,16 @@ export default function App() {
   const [view, setView] = useState<ChartView>(() =>
     parseView(window.localStorage.getItem(VIEW_KEY)),
   );
+  // Phase 4: which screen is showing. Fresh visits land on the Dashboard (§9 —
+  // the landing view); the choice persists under its own key.
+  const [screen, setScreen] = useState<Screen>(() =>
+    parseScreen(window.localStorage.getItem(SCREEN_KEY)),
+  );
+  // Build-time git metadata (staleness + captured baseline files). Null on a
+  // dev machine that never ran `npm run meta` — every consumer degrades.
+  const [meta, setMeta] = useState<Meta | null>(null);
+  // Chart-side baseline ghost-bar toggle (deliverable 8). Off by default.
+  const [showBaseline, setShowBaseline] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveIssues, setSaveIssues] = useState<SaveIssue[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -238,6 +264,18 @@ export default function App() {
     let alive = true;
     load().then((s) => {
       if (alive) setState(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Meta loads independently of the data files: the dashboard renders fine
+  // without it (staleness/baseline tiles show their honest empty states).
+  useEffect(() => {
+    let alive = true;
+    loadMeta().then((m) => {
+      if (alive) setMeta(m);
     });
     return () => {
       alive = false;
@@ -290,6 +328,46 @@ export default function App() {
   // state through this ref — the DHTMLX view survives every re-render.
   const workingRef = useRef<Working | null>(null);
   workingRef.current = working;
+
+  // ── Phase 4 derived state ────────────────────────────────────────────────────
+  // The baseline schedule: the SAME merge+compute pipeline, run over the data
+  // files as captured at the newest baseline/* tag, on the same `today` — so the
+  // diff against the current schedule is purely a data delta (§6.4).
+  const baseline = useMemo(
+    () => baselineScheduleFromMeta(meta, todayRef.current),
+    [meta],
+  );
+
+  // The whole landing view is one pure model (dashboard/dashboard-model.ts);
+  // Dashboard.tsx just draws it.
+  const dashModel: DashboardModel | null = useMemo(
+    () =>
+      working
+        ? buildDashboard(working.project, working.schedule, meta, todayRef.current)
+        : null,
+    [working, meta],
+  );
+
+  // Ghost bars (deliverable 8): each CURRENT leaf task's BASELINE dates. Tasks
+  // absent from the baseline get no ghost; diamonds/summaries stay clean (a
+  // zero-width ghost or a bracket echo would be noise, not signal).
+  const ghostBars: GhostBar[] | null = useMemo(() => {
+    if (!showBaseline || !baseline || !working) return null;
+    const bars: GhostBar[] = [];
+    for (const row of working.model.rows) {
+      if (row.kind !== "task") continue;
+      const b = baseline.schedule.tasks[row.id];
+      if (!b) continue;
+      bars.push({
+        id: row.id,
+        startISO: b.earliestStart,
+        endISO: b.earliestFinish,
+      });
+    }
+    return bars;
+  }, [showBaseline, baseline, working]);
+  const ghostRef = useRef<GhostBar[] | null>(null);
+  ghostRef.current = ghostBars;
 
   const editEvents = useMemo<EditEvents>(() => {
     const applyEdit = (id: string, patch: TaskPatch) =>
@@ -413,23 +491,44 @@ export default function App() {
     window.localStorage.setItem(VIEW_KEY, viewToken(v));
   };
 
+  // Persist the screen choice; fresh profiles land on the Dashboard (§9).
+  const onScreen = (s: Screen) => {
+    setScreen(s);
+    window.localStorage.setItem(SCREEN_KEY, s);
+  };
+
+  // "Review spine →" (§9): the one-slide version — jump to the Chart tab with
+  // the Spine view preselected, both persisted through the normal setters.
+  const onReviewSpine = () => {
+    onView({ kind: "spine" });
+    onScreen("chart");
+  };
+
   // Create / tear down the DHTMLX view when a chart appears/disappears; edits
   // re-render the SAME view (scroll preserved) via the model effect below.
+  // Phase 4: the chart lives behind the Chart tab, so its container only exists
+  // when that screen is showing — `screen` gates (and re-runs) this effect.
   useEffect(() => {
-    if (!hasChart || !containerRef.current) return;
+    if (screen !== "chart" || !hasChart || !containerRef.current) return;
     const view = createGanttView(containerRef.current, editEvents);
     viewRef.current = view;
     if (modelRef.current) view.render(modelRef.current, zoomRef.current);
+    view.setGhosts(ghostRef.current); // restore the baseline overlay on re-mount
     return () => {
       view.destroy();
       viewRef.current = null;
     };
-  }, [hasChart, editEvents]);
+  }, [screen, hasChart, editEvents]);
 
   useEffect(() => {
     modelRef.current = model;
     if (model && viewRef.current) viewRef.current.render(model, zoomRef.current);
   }, [model]);
+
+  // Push baseline ghosts into the live view whenever the toggle / data changes.
+  useEffect(() => {
+    viewRef.current?.setGhosts(ghostBars);
+  }, [ghostBars]);
 
   const onZoom = (z: Zoom) => {
     setZoom(z);
@@ -624,62 +723,74 @@ export default function App() {
       <Header
         project={project}
         mode={mode}
+        screen={screen}
+        onScreen={onScreen}
         onToggleMode={toggleMode}
         onOpenSettings={() => setSettingsOpen(true)}
       />
-      <Toolbar
-        zoom={zoom}
-        onZoom={onZoom}
-        view={view}
-        onView={onView}
-        squads={project.squads}
-        onAddTask={onAddTask}
-        dirty={dirty}
-        saving={saving}
-        hasToken={hasToken}
-        onSave={onSave}
-        onDiscard={onDiscard}
-      />
-      <SaveErrors
-        issues={saveIssues}
-        settings={ghSettings}
-        onReload={onReloadConflict}
-        onDismiss={onDismissIssue}
-      />
-      <Banner issues={project.issues} conflicts={schedule.conflicts} />
-      <div className={`fl-main${panelOpen ? " fl-main-panel" : ""}`}>
-        {hasChart ? (
-          <div className="fl-chart">
-            <div className="fl-chart-inner" ref={containerRef} />
-          </div>
-        ) : (
-          <div className="fl-state">
-            <div className="fl-card">
-              <h2>The schedule can't be drawn yet</h2>
-              <p>
-                A conflict in the plan is blocking the whole schedule. See the
-                banner above for the exact fix — once it's resolved the chart
-                comes back automatically.
-              </p>
-            </div>
-          </div>
-        )}
-        {panelOpen && working && selectedId && selectedRow && (
-          <EditPanel
-            row={selectedRow}
-            task={working.taskById.get(selectedId)}
-            sched={working.schedule.tasks[selectedId]}
-            allTasks={working.project.tasks}
-            squads={working.project.squads}
-            squadIds={working.squadIds}
-            conflicts={working.schedule.conflicts}
-            onPatch={onPanelPatch}
-            onAdd={onAddTask}
-            onDelete={onDeleteTask}
-            onClose={() => setSelectedId(null)}
+      {screen === "dashboard" ? (
+        // ── the landing view (Phase 4) — a thin render of the pure model ──────
+        dashModel && <Dashboard model={dashModel} onReviewSpine={onReviewSpine} />
+      ) : (
+        <>
+          <Toolbar
+            zoom={zoom}
+            onZoom={onZoom}
+            view={view}
+            onView={onView}
+            squads={project.squads}
+            onAddTask={onAddTask}
+            dirty={dirty}
+            saving={saving}
+            hasToken={hasToken}
+            onSave={onSave}
+            onDiscard={onDiscard}
+            baselineTag={baseline?.tag ?? null}
+            showBaseline={showBaseline}
+            onToggleBaseline={() => setShowBaseline((b) => !b)}
           />
-        )}
-      </div>
+          <SaveErrors
+            issues={saveIssues}
+            settings={ghSettings}
+            onReload={onReloadConflict}
+            onDismiss={onDismissIssue}
+          />
+          <Banner issues={project.issues} conflicts={schedule.conflicts} />
+          <div className={`fl-main${panelOpen ? " fl-main-panel" : ""}`}>
+            {hasChart ? (
+              <div className="fl-chart">
+                <div className="fl-chart-inner" ref={containerRef} />
+              </div>
+            ) : (
+              <div className="fl-state">
+                <div className="fl-card">
+                  <h2>The schedule can't be drawn yet</h2>
+                  <p>
+                    A conflict in the plan is blocking the whole schedule. See
+                    the banner above for the exact fix — once it's resolved the
+                    chart comes back automatically.
+                  </p>
+                </div>
+              </div>
+            )}
+            {panelOpen && working && selectedId && selectedRow && (
+              <EditPanel
+                row={selectedRow}
+                task={working.taskById.get(selectedId)}
+                sched={working.schedule.tasks[selectedId]}
+                allTasks={working.project.tasks}
+                squads={working.project.squads}
+                squadIds={working.squadIds}
+                conflicts={working.schedule.conflicts}
+                onPatch={onPanelPatch}
+                onAdd={onAddTask}
+                onDelete={onDeleteTask}
+                onClose={() => setSelectedId(null)}
+              />
+            )}
+          </div>
+        </>
+      )}
       {toast && <div className="fl-toast">{toast}</div>}
       {settingsOpen && (
         <SettingsModal
@@ -700,11 +811,15 @@ export default function App() {
 function Header({
   project,
   mode,
+  screen,
+  onScreen,
   onToggleMode,
   onOpenSettings,
 }: {
   project?: ProjectData;
   mode: Mode;
+  screen?: Screen; // omitted while loading / on error — no tabs then
+  onScreen?: (s: Screen) => void;
   onToggleMode: () => void;
   onOpenSettings: () => void;
 }) {
@@ -720,6 +835,24 @@ function Header({
         </div>
       </div>
       <div className="fl-header-actions">
+        {/* Phase 4: the two-view shell. Quiet segmented control — same inverted-
+            chip vocabulary as the toolbar segs, never gold. */}
+        {screen && onScreen && (
+          <div className="fl-seg fl-screen-seg" role="group" aria-label="Screen">
+            <button
+              aria-pressed={screen === "dashboard"}
+              onClick={() => onScreen("dashboard")}
+            >
+              Dashboard
+            </button>
+            <button
+              aria-pressed={screen === "chart"}
+              onClick={() => onScreen("chart")}
+            >
+              Chart
+            </button>
+          </div>
+        )}
         <button
           type="button"
           className="fl-mode-toggle"
@@ -761,6 +894,9 @@ function Toolbar({
   hasToken,
   onSave,
   onDiscard,
+  baselineTag,
+  showBaseline,
+  onToggleBaseline,
 }: {
   zoom: Zoom;
   onZoom: (z: Zoom) => void;
@@ -773,6 +909,9 @@ function Toolbar({
   hasToken: boolean;
   onSave: () => void;
   onDiscard: () => void;
+  baselineTag: string | null; // null = no baseline in meta → no toggle at all
+  showBaseline: boolean;
+  onToggleBaseline: () => void;
 }) {
   const canSave = dirty > 0 && hasToken && !saving;
   const activeToken = view.kind === "squad" ? `squad:${view.squadId}` : view.kind;
@@ -821,6 +960,20 @@ function Toolbar({
           title="Add a task to this squad"
         >
           + Add task
+        </button>
+      )}
+      {/* Baseline ghost bars (Phase 4, deliverable 8): a quiet toggle, present
+          only when a baseline schedule exists. Ghosts are hairline outlines at
+          each task's baseline dates — the dashboard carries the headline. */}
+      {baselineTag !== null && (
+        <button
+          type="button"
+          className="fl-baseline-toggle"
+          aria-pressed={showBaseline}
+          onClick={onToggleBaseline}
+          title={`Overlay ghost bars at each task's dates as of ${baselineTag}`}
+        >
+          Baseline
         </button>
       )}
       {/* The legend is the STATE vocabulary (§7); squad identity lives in the

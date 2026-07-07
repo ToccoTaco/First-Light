@@ -44,9 +44,23 @@ export interface EditEvents {
   onRowSelect(id: string): void;
 }
 
+/**
+ * One baseline ghost bar: a CURRENT task id plus the dates that task had at the
+ * baseline. Drawn as a faint hairline outline at the baseline position, on the
+ * current task's own row, so the two can be compared in place (deliverable 8).
+ * `endISO` is EXCLUSIVE, same convention as ChartRow.
+ */
+export interface GhostBar {
+  id: string;
+  startISO: string;
+  endISO: string;
+}
+
 export interface GanttView {
   render(model: ChartModel, zoom?: Zoom): void;
   setZoom(zoom: Zoom): void;
+  /** Overlay baseline ghost bars (or clear them with null). */
+  setGhosts(ghosts: GhostBar[] | null): void;
   destroy(): void;
 }
 
@@ -383,6 +397,82 @@ export function createGanttView(
   };
   gantt.attachEvent("onGanttRender", drawMarkers);
 
+  // ── baseline ghost bars (deliverable 8) ─────────────────────────────────────
+  // Same custom-DOM technique as the markers: faint outline bars in the scrolling
+  // timeline layer, positioned by getTaskPosition (baseline dates × the current
+  // task's own row) and redrawn on every render. A task with no baseline entry
+  // gets no ghost; ids not currently in the chart are skipped.
+  let ghostData: GhostBar[] | null = null;
+  const ghostEls = new Map<string, HTMLDivElement>();
+  // The current model's own date span (set on every render). When ghosts are
+  // active the chart's range must be the UNION of current + baseline dates —
+  // otherwise a baseline that reaches past the current finish gets clamped to
+  // zero width at the right edge and silently vanishes.
+  let modelRange: { min: string; max: string } | null = null;
+
+  const applyGhostRange = () => {
+    if (ghostData && ghostData.length > 0 && modelRange) {
+      let min = modelRange.min;
+      let max = modelRange.max;
+      for (const g of ghostData) {
+        if (g.startISO < min) min = g.startISO;
+        if (g.endISO > max) max = g.endISO;
+      }
+      gantt.config.start_date = isoToDate(min);
+      // A week of air past the last bar so nothing sits flush on the edge.
+      gantt.config.end_date = gantt.date.add(isoToDate(max), 7, "day");
+    } else {
+      // Back to DHTMLX's own auto range (derived from the parsed tasks).
+      gantt.config.start_date = undefined;
+      gantt.config.end_date = undefined;
+    }
+  };
+
+  const clearGhostEls = (keep?: Set<string>) => {
+    for (const [id, el] of ghostEls) {
+      if (keep?.has(id)) continue;
+      el.remove();
+      ghostEls.delete(id);
+    }
+  };
+
+  const drawGhosts = () => {
+    const layer = gantt.$task_data;
+    if (!layer) return;
+    if (!ghostData || ghostData.length === 0) {
+      clearGhostEls();
+      return;
+    }
+    const live = new Set<string>();
+    for (const g of ghostData) {
+      // Only bars for tasks the chart is currently showing; absent ids are
+      // skipped (a task with no baseline entry never reaches here anyway).
+      if (!gantt.isTaskExists(g.id)) continue;
+      const task = gantt.getTask(g.id);
+      const pos = gantt.getTaskPosition(
+        task,
+        isoToDate(g.startISO),
+        isoToDate(g.endISO),
+      );
+      if (!pos || pos.width <= 0) continue;
+      live.add(g.id);
+      let el = ghostEls.get(g.id);
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "fl-ghost";
+        el.dataset.taskId = g.id; // stable handle for tests / debugging
+        ghostEls.set(g.id, el);
+      }
+      if (el.parentNode !== layer) layer.appendChild(el);
+      el.style.left = `${pos.left}px`;
+      el.style.top = `${pos.top}px`;
+      el.style.width = `${pos.width}px`;
+      el.style.height = `${pos.height}px`;
+    }
+    clearGhostEls(live); // drop ghosts whose task scrolled out / vanished
+  };
+  gantt.attachEvent("onGanttRender", drawGhosts);
+
   const render = (model: ChartModel, zoom?: Zoom) => {
     if (zoom) currentZoom = zoom;
     applyScales(currentZoom);
@@ -393,6 +483,19 @@ export function createGanttView(
       gantt.init(container);
       initialised = true;
     }
+    // Track the model's span and (re)apply the ghost-union range BEFORE parse,
+    // so the scale is wide enough for any baseline overlay.
+    modelRange = null;
+    for (const r of model.rows) {
+      if (!r.startISO || !r.endISO) continue;
+      if (!modelRange) {
+        modelRange = { min: r.startISO, max: r.endISO };
+      } else {
+        if (r.startISO < modelRange.min) modelRange.min = r.startISO;
+        if (r.endISO > modelRange.max) modelRange.max = r.endISO;
+      }
+    }
+    applyGhostRange();
     gantt.clearAll();
     const payload = {
       data: model.rows.map((r) => {
@@ -423,8 +526,17 @@ export function createGanttView(
       applyScales(zoom);
       if (initialised) gantt.render();
     },
+    setGhosts(ghosts: GhostBar[] | null) {
+      ghostData = ghosts;
+      applyGhostRange();
+      // A full repaint re-derives the scale for the (possibly wider) range and
+      // fires onGanttRender, which redraws both markers and ghosts in place.
+      if (initialised) gantt.render();
+      else drawGhosts();
+    },
     destroy() {
       markerEls.clear();
+      clearGhostEls();
       if (initialised) gantt.destructor();
     },
   };

@@ -400,6 +400,21 @@
   transform: translateX(50%);
 }
 
+/* ── baseline ghost bars (deliverable 8) ───────────────────────────────────────
+ * Drawn by gantt-adapter.ts into the timeline layer at each current task's
+ * BASELINE position. Faint hairline outline, telemetry ink, NO fill — a whisper
+ * of where the plan used to sit, never competing with the live bar above it. */
+.fl-ghost {
+  position: absolute;
+  z-index: 0; /* under the live bars, above the row background */
+  box-sizing: border-box;
+  border: 1px dashed var(--text-telemetry);
+  border-radius: 4px;
+  background: transparent;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* ── tooltip card ──────────────────────────────────────────────────────────── */
 
 .gantt_tooltip {

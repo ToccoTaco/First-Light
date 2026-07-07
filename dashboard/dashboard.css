@@ -1,0 +1,415 @@
+/* dashboard/dashboard.css — the landing view's look. Every colour resolves from
+ * ui/tokens.css (DESIGN §2) — no literals here.
+ *
+ * Layout (DESIGN §5): this is where the nebula finally breathes. The scroll
+ * container is transparent so the page canvas (and its fixed nebula) shows in the
+ * gutters; every tile is a SOLID --surface panel floating above it, so text never
+ * sits over the nebula. The hero band is the sanctioned atmosphere showcase —
+ * its own richer nebula + the sparse starfield, exactly like the title block.
+ * Light mode: the nebula/starfield tokens resolve to `none`, so tiles are plain
+ * white on a clean daytime canvas. */
+
+.fl-dash {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* generous §5 gutters around the whole board */
+  padding: 4px 4px 24px;
+}
+
+/* ── the T-minus hero (deliverable 1) ────────────────────────────────────────── */
+/* Full-width band. Solid --surface with an atmospheric ::before (nebula + stars),
+ * same technique as the app header showcase — the one place §5 authorises the
+ * starfield flourish. A left-edge fade keeps the clouds off the countdown text so
+ * contrast stays full. */
+.fl-dash-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 12px;
+  min-height: 168px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 34px 24px;
+}
+.fl-dash-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--starfield), var(--nebula-header);
+  background-repeat: no-repeat;
+}
+.fl-dash-hero-inner {
+  position: relative;
+  z-index: 1;
+}
+/* The gold moment (DESIGN §4): huge mono --gold-text. This is the ONE gold on the
+ * whole dashboard screen. */
+.fl-countdown-num {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: clamp(44px, 8vw, 76px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--gold-text);
+}
+.fl-countdown-calm {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: clamp(30px, 5vw, 46px);
+  line-height: 1.05;
+  color: var(--text-primary);
+}
+.fl-countdown-target {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ── review-spine action (deliverable 7) — quiet, never gold ─────────────────── */
+.fl-dash-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+.fl-review-link {
+  appearance: none;
+  border: 1px solid var(--border-hair);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.fl-review-link:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+/* ── the tile grid (§5 generous gutters) ─────────────────────────────────────── */
+.fl-dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.fl-tile {
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 12px;
+  padding: 16px 18px 18px;
+  min-width: 0;
+}
+/* The slippage tile carries a table — let it take two columns when there's room. */
+.fl-tile-slippage {
+  grid-column: span 2;
+}
+@media (max-width: 720px) {
+  .fl-tile-slippage {
+    grid-column: span 1;
+  }
+}
+
+/* Console label — small-caps mono, wide tracking (DESIGN §4), one per tile. */
+.fl-tile-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-telemetry);
+  margin-bottom: 14px;
+}
+.fl-tile-empty {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.fl-tile code {
+  background: var(--surface-raised);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+/* ── progress rollups (deliverable 2) ────────────────────────────────────────── */
+.fl-prog-overall {
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-hair);
+}
+.fl-prog-squad + .fl-prog-squad {
+  margin-top: 12px;
+}
+.fl-prog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fl-prog-name {
+  flex: 0 0 96px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 0;
+}
+.fl-prog-chip {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+  display: inline-block;
+}
+.fl-prog-track {
+  flex: 1 1 auto;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-hair);
+  overflow: hidden;
+  min-width: 0;
+}
+/* Bars carry MAGNITUDE, not identity — the neutral/blue activity family, never
+ * gold, never a per-squad fill (the chip carries identity). */
+.fl-prog-fill {
+  display: block;
+  height: 100%;
+  background: var(--bar-active);
+  border-radius: 4px 0 0 4px;
+}
+.fl-prog-pct {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  width: 40px;
+  text-align: right;
+}
+.fl-prog-counts {
+  margin-top: 5px;
+  margin-left: 106px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-telemetry);
+}
+
+/* ── slippage (deliverable 3) ────────────────────────────────────────────────── */
+.fl-slip-headline {
+  margin: 0 0 14px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.fl-slip-headline b {
+  font-weight: 500;
+}
+/* Later = trouble (blocked ink). Earlier / steady = calm primary/secondary — no
+ * gold anywhere in this tile. */
+.fl-slip-later {
+  color: var(--blocked-fg);
+}
+.fl-slip-earlier {
+  color: var(--text-primary);
+}
+.fl-slip-steady {
+  color: var(--text-secondary);
+}
+.fl-delta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.fl-delta-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-telemetry);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-hair);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+}
+.fl-delta-table th:last-child,
+.fl-delta-table td:last-child {
+  text-align: right;
+}
+.fl-delta-table td {
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-hair);
+}
+.fl-delta-table tr:last-child td {
+  border-bottom: none;
+}
+.fl-delta-name {
+  font-family: var(--font-ui);
+  color: var(--text-primary) !important;
+}
+.fl-delta-later {
+  color: var(--blocked-fg) !important;
+}
+.fl-delta-earlier {
+  color: var(--text-primary) !important;
+}
+.fl-delta-steady,
+.fl-delta-none {
+  color: var(--text-telemetry) !important;
+}
+
+/* ── critical path (deliverable 4) — quiet, NO gold (thread lives on the chart) ─ */
+.fl-crit-finish {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.fl-crit-finish-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.fl-crit-finish-date {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.fl-crit-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 2px;
+  margin-bottom: 12px;
+}
+.fl-crit-node-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.fl-crit-arrow {
+  color: var(--text-telemetry);
+  font-size: 12px;
+  margin: 0 2px;
+}
+.fl-crit-node {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-hair);
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+/* Gates read as diamond-marked nodes but stay INK, not gold, on this tile. */
+.fl-crit-node-gate {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.fl-crit-node-gate::before {
+  content: "◆ ";
+  color: var(--text-telemetry);
+}
+.fl-crit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-telemetry);
+}
+
+/* ── blocked (deliverable 5) ─────────────────────────────────────────────────── */
+.fl-blocked-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fl-blocked-item {
+  background: linear-gradient(var(--blocked-bg), var(--blocked-bg)) var(--surface);
+  border: 1px solid var(--blocked-fg);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.fl-blocked-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.fl-blocked-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--blocked-fg);
+}
+.fl-blocked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.fl-blocked-meta {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-telemetry);
+}
+
+/* ── staleness (deliverable 6) ───────────────────────────────────────────────── */
+.fl-stale-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.fl-stale-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+.fl-stale-row:last-child {
+  border-bottom: none;
+}
+.fl-stale-name {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.fl-stale-age {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-telemetry);
+}
+/* Threshold treatment (DESIGN §4 gold-as-text is sanctioned for the >14d warn):
+ * >14 days warms to gold-text, >30 days escalates to blocked ink. */
+.fl-stale-warn .fl-stale-age {
+  color: var(--gold-text);
+}
+.fl-stale-stale .fl-stale-name {
+  color: var(--blocked-fg);
+}
+.fl-stale-stale .fl-stale-age {
+  color: var(--blocked-fg);
+  font-weight: 500;
+}

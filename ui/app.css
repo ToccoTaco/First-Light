@@ -509,6 +509,32 @@ body {
   white-space: nowrap;
 }
 
+/* ── baseline ghost-bar toggle (Phase 4) — quiet, never gold ───────────────── */
+/* Same vocabulary as the other quiet controls; pressed = the inverted chip. */
+.fl-baseline-toggle {
+  appearance: none;
+  border: 1px solid var(--border-hair);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fl-baseline-toggle:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.fl-baseline-toggle[aria-pressed="true"] {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--canvas);
+  font-weight: 500;
+}
+
 /* ── main row: chart + optional side panel ─────────────────────────────────── */
 /* The chart and the editor panel share a flex row so the chart RE-FLOWS (shrinks)
  * beside the panel rather than being covered by it (§8: "chart re-flows beside
