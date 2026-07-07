@@ -74,13 +74,7 @@ import {
   type GhostBar,
   type Zoom,
 } from "./gantt-adapter";
-import {
-  applyMode,
-  otherMode,
-  readMode,
-  resolveMode,
-  type Mode,
-} from "./mode";
+import { applyMode, otherMode, readMode, resolveMode, type Mode } from "./mode";
 import { loadMeta, type Meta } from "../storage/meta";
 import {
   Dashboard,
@@ -161,15 +155,26 @@ interface Ready {
   fetchIssues: DataIssue[];
 }
 type LoadState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | Ready;
+  { status: "loading" } | { status: "error"; message: string } | Ready;
 
 /** One failed file save, kept on screen until dismissed / resolved. */
 interface SaveIssue {
   path: string;
   error: GitHubError;
 }
+
+/** A transient toast + its kind (drives the ✓ / ⚠ / › glyph and tint). */
+type ToastKind = "info" | "success" | "warn";
+interface Toast {
+  text: string;
+  kind: ToastKind;
+}
+/** The per-kind glyph (unicode, no icon lib). */
+const TOAST_ICON: Record<ToastKind, string> = {
+  success: "✓",
+  warn: "⚠",
+  info: "›",
+};
 
 async function fetchText(url: string): Promise<string> {
   const res = await fetch(url, { cache: "no-store" });
@@ -245,7 +250,7 @@ export default function App() {
   const [showBaseline, setShowBaseline] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveIssues, setSaveIssues] = useState<SaveIssue[]>([]);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ghSettings, setGhSettings] = useState<GitHubSettings | null>(() =>
     getSettings(window.localStorage),
@@ -253,7 +258,9 @@ export default function App() {
   const [zoom, setZoom] = useState<Zoom>("month");
   // The pre-paint script in index.html already stamped data-mode; seed state
   // from it so the toggle is in sync without a flash.
-  const [mode, setMode] = useState<Mode>(() => readMode(document.documentElement));
+  const [mode, setMode] = useState<Mode>(() =>
+    readMode(document.documentElement),
+  );
   const zoomRef = useRef<Zoom>("month");
   const viewRef = useRef<GanttView | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -297,8 +304,8 @@ export default function App() {
     setMode(next);
   };
 
-  const showToast = (text: string) => {
-    setToast(text);
+  const showToast = (text: string, kind: ToastKind = "info") => {
+    setToast({ text, kind });
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 4000);
   };
@@ -343,7 +350,12 @@ export default function App() {
   const dashModel: DashboardModel | null = useMemo(
     () =>
       working
-        ? buildDashboard(working.project, working.schedule, meta, todayRef.current)
+        ? buildDashboard(
+            working.project,
+            working.schedule,
+            meta,
+            todayRef.current,
+          )
         : null,
     [working, meta],
   );
@@ -385,7 +397,9 @@ export default function App() {
         // on this date". Duration is preserved; the auto/pinned release toggle
         // arrives with the full editor. Surface the consequence lightly.
         applyEdit(id, movePatch(newStartISO));
-        showToast(`${nameOf(id)} pinned to ${shortDate(newStartISO)} — unsaved`);
+        showToast(
+          `${nameOf(id)} pinned to ${shortDate(newStartISO)} — unsaved`,
+        );
       },
       onResize(id, days) {
         applyEdit(id, resizePatch(days));
@@ -426,7 +440,8 @@ export default function App() {
     () => (working ? filterChartModel(working.model, view) : null),
     [working, view],
   );
-  const hasChart = !!model && working!.model.hasSchedule && model.rows.length > 0;
+  const hasChart =
+    !!model && working!.model.hasSchedule && model.rows.length > 0;
   const modelRef = useRef<ChartModel | null>(null);
 
   // The panel opens on the model row when present, or — when a cycle has blanked
@@ -522,7 +537,8 @@ export default function App() {
 
   useEffect(() => {
     modelRef.current = model;
-    if (model && viewRef.current) viewRef.current.render(model, zoomRef.current);
+    if (model && viewRef.current)
+      viewRef.current.render(model, zoomRef.current);
   }, [model]);
 
   // Push baseline ghosts into the live view whenever the toggle / data changes.
@@ -576,7 +592,7 @@ export default function App() {
     if (saving || dirty === 0 || state.status !== "ready" || !working) return;
     const s = getSettings(window.localStorage);
     if (!s || !s.token.trim()) {
-      showToast("Add a GitHub token in Settings to save");
+      showToast("Add a GitHub token in Settings to save", "warn");
       return;
     }
     setSaving(true);
@@ -599,7 +615,7 @@ export default function App() {
     setSaving(false);
 
     if (outcome.noToken) {
-      showToast("Add a GitHub token in Settings to save");
+      showToast("Add a GitHub token in Settings to save", "warn");
       return;
     }
 
@@ -647,6 +663,7 @@ export default function App() {
     if (failures.length === 0) {
       showToast(
         `Saved — ${savedTaskIds.size} change${savedTaskIds.size === 1 ? "" : "s"} committed`,
+        "success",
       );
     }
   };
@@ -673,8 +690,12 @@ export default function App() {
       }
       return next;
     });
-    setAdded((prev) => prev.filter((t) => fileForTaskId(t.id, squadIds) !== path));
-    setRemoved((prev) => prev.filter((id) => fileForTaskId(id, squadIds) !== path));
+    setAdded((prev) =>
+      prev.filter((t) => fileForTaskId(t.id, squadIds) !== path),
+    );
+    setRemoved((prev) =>
+      prev.filter((id) => fileForTaskId(id, squadIds) !== path),
+    );
     setSaveIssues((prev) => prev.filter((i) => i.path !== path));
     showToast(`${baseName(path)} reloaded from GitHub — re-apply your edits`);
   };
@@ -719,7 +740,9 @@ export default function App() {
 
   const { project, schedule } = working!;
   return (
-    <div className="fl-app">
+    <div
+      className={`fl-app${screen === "dashboard" ? " fl-on-dashboard" : ""}`}
+    >
       <Header
         project={project}
         mode={mode}
@@ -730,7 +753,9 @@ export default function App() {
       />
       {screen === "dashboard" ? (
         // ── the landing view (Phase 4) — a thin render of the pure model ──────
-        dashModel && <Dashboard model={dashModel} onReviewSpine={onReviewSpine} />
+        dashModel && (
+          <Dashboard model={dashModel} onReviewSpine={onReviewSpine} />
+        )
       ) : (
         <>
           <Toolbar
@@ -791,7 +816,14 @@ export default function App() {
           </div>
         </>
       )}
-      {toast && <div className="fl-toast">{toast}</div>}
+      {toast && (
+        <div className={`fl-toast fl-toast-${toast.kind}`} role="status">
+          <span className="fl-toast-icon" aria-hidden="true">
+            {TOAST_ICON[toast.kind]}
+          </span>
+          <span>{toast.text}</span>
+        </div>
+      )}
       {settingsOpen && (
         <SettingsModal
           initial={ghSettings}
@@ -800,7 +832,10 @@ export default function App() {
             setSettings(window.localStorage, s);
             setGhSettings(s);
             setSettingsOpen(false);
-            showToast("Settings saved — the token stays in this browser");
+            showToast(
+              "Settings saved — the token stays in this browser",
+              "success",
+            );
           }}
         />
       )}
@@ -829,16 +864,18 @@ function Header({
       <div>
         <h1>First Light</h1>
         <div className="fl-sub">
-          {project
-            ? `${project.projectName} · ${project.team}`
-            : "ND Experimental Propulsion — mission timeline"}
+          {project ? project.team : "Notre Dame Experimental Propulsion"}
         </div>
       </div>
       <div className="fl-header-actions">
         {/* Phase 4: the two-view shell. Quiet segmented control — same inverted-
             chip vocabulary as the toolbar segs, never gold. */}
         {screen && onScreen && (
-          <div className="fl-seg fl-screen-seg" role="group" aria-label="Screen">
+          <div
+            className="fl-seg fl-screen-seg"
+            role="group"
+            aria-label="Screen"
+          >
             <button
               aria-pressed={screen === "dashboard"}
               onClick={() => onScreen("dashboard")}
@@ -914,7 +951,8 @@ function Toolbar({
   onToggleBaseline: () => void;
 }) {
   const canSave = dirty > 0 && hasToken && !saving;
-  const activeToken = view.kind === "squad" ? `squad:${view.squadId}` : view.kind;
+  const activeToken =
+    view.kind === "squad" ? `squad:${view.squadId}` : view.kind;
   return (
     <div className="fl-toolbar">
       <div className="fl-seg" role="group" aria-label="Zoom level">
@@ -1157,55 +1195,68 @@ function SettingsModal({
     >
       <div className="fl-modal" role="dialog" aria-label="GitHub settings">
         <h2>Settings</h2>
-        <p className="fl-modal-note">
-          Saving commits your edits to GitHub. Create a{" "}
-          <a
-            href="https://github.com/settings/personal-access-tokens"
-            target="_blank"
-            rel="noreferrer"
-          >
-            fine-grained personal access token
-          </a>{" "}
-          with access to this repo and <b>Contents: Read and write</b>{" "}
-          permission. The token stays in this browser only.
-        </p>
-        <label className="fl-field">
-          <span>Owner</span>
-          <input
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-            placeholder="nd-propulsion"
-            autoComplete="off"
-          />
-        </label>
-        <label className="fl-field">
-          <span>Repo</span>
-          <input
-            value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-            placeholder="first-light"
-            autoComplete="off"
-          />
-        </label>
-        <label className="fl-field">
-          <span>Branch</span>
-          <input
-            value={branch}
-            onChange={(e) => setBranch(e.target.value)}
-            placeholder="main"
-            autoComplete="off"
-          />
-        </label>
-        <label className="fl-field">
-          <span>Token</span>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="github_pat_…"
-            autoComplete="off"
-          />
-        </label>
+        <p className="fl-modal-note">Where saving commits your edits.</p>
+        <div className="fl-modal-section">
+          <div className="fl-modal-section-label">Repository</div>
+          <label className="fl-field">
+            <span>Owner</span>
+            <input
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
+              placeholder="nd-propulsion"
+              autoComplete="off"
+            />
+          </label>
+          <label className="fl-field">
+            <span>Repo</span>
+            <input
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              placeholder="first-light"
+              autoComplete="off"
+            />
+          </label>
+          <label className="fl-field">
+            <span>Branch</span>
+            <input
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              placeholder="main"
+              autoComplete="off"
+            />
+          </label>
+        </div>
+        <div className="fl-modal-section">
+          <div className="fl-modal-section-label">Access</div>
+          <label className="fl-field">
+            <span>Token</span>
+            <input
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="github_pat_…"
+              autoComplete="off"
+            />
+          </label>
+          <div className="fl-modal-lock">
+            <span className="fl-modal-lock-glyph" aria-hidden="true">
+              🔒
+            </span>
+            <span>
+              Create a{" "}
+              <a
+                href="https://github.com/settings/personal-access-tokens"
+                target="_blank"
+                rel="noreferrer"
+              >
+                fine-grained token
+              </a>{" "}
+              with <b>Contents: Read and write</b> on this repo. It stays in
+              this browser only — never committed, never sent anywhere but
+              GitHub.
+            </span>
+          </div>
+        </div>
         <div className="fl-modal-actions">
           <button type="button" className="fl-discard" onClick={onClose}>
             Cancel
@@ -1231,7 +1282,10 @@ function SettingsModal({
 }
 
 /** Turn an engine Conflict into a one-line, plain-language fix. */
-function conflictLine(c: Conflict): { severity: "error" | "warning"; text: string } {
+function conflictLine(c: Conflict): {
+  severity: "error" | "warning";
+  text: string;
+} {
   switch (c.kind) {
     case "cycle":
       return {

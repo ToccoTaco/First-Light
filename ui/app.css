@@ -7,6 +7,18 @@
  * the nebula shows only in the gutters and around panel edges — structurally
  * never behind text. */
 
+/* Vendored display face for the wordmark (aesthetic pass 2026-07-06). Michroma,
+ * OFL — the woff2 + its OFL license live in ui/fonts/; Vite fingerprints and
+ * bundles the file, so there is NO runtime CDN request. `swap` shows the
+ * --font-ui fallback instantly, then swaps Michroma in when it loads. */
+@font-face {
+  font-family: "Michroma";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/michroma-latin.woff2") format("woff2");
+}
+
 html,
 body,
 #root {
@@ -71,6 +83,59 @@ body {
   gap: 10px;
 }
 
+/* ── dashboard-only deeper atmosphere (aesthetic pass) ──────────────────────────
+ * The chart screen keeps the quiet page nebula (body). The DASHBOARD alone gets
+ * an extra, deeper cloud + a sparse gutter starfield, painted on a fixed layer
+ * that sits BEHIND every solid tile (isolation keeps it inside .fl-app; z-index
+ * -1 drops it below the header/tiles so it only shows in the gutters, composited
+ * over the base canvas nebula). Both tokens resolve to `none` in light mode, so
+ * this paints nothing in daytime. App toggles .fl-on-dashboard per screen. */
+.fl-app.fl-on-dashboard {
+  isolation: isolate;
+}
+.fl-app.fl-on-dashboard::before {
+  content: "";
+  position: fixed;
+  inset: -8%; /* oversized so the slow drift never reveals an edge */
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--starfield-dash), var(--nebula-dash);
+  background-repeat: no-repeat;
+  will-change: transform;
+}
+/* Ultra-slow drift — a living nebula (transform only, GPU-cheap). STATIC is the
+ * default truth: this whole block is gated behind no-preference, so a reduced-
+ * motion viewer sees a still field. ~112s loop, tiny travel, alternating. */
+@media (prefers-reduced-motion: no-preference) {
+  .fl-app.fl-on-dashboard::before {
+    animation: fl-nebula-drift 112s ease-in-out infinite alternate;
+  }
+}
+@keyframes fl-nebula-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.6%, -1.4%, 0) scale(1.04);
+  }
+}
+
+/* ── focus-visible ring (a11y sweep) ────────────────────────────────────────────
+ * One token-styled ring on every keyboard-focused control, replacing the browser
+ * default blue. Only :focus-visible (keyboard), so a mouse click never rings. */
+.fl-app :focus-visible,
+.fl-modal :focus-visible,
+.fl-panel :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Inputs already have a radius + their own border; keep the offset tight there. */
+.fl-panel-input:focus-visible,
+.fl-field input:focus-visible {
+  outline-offset: 1px;
+}
+
 /* Every shell region is a proper §5 PANEL: solid surface, hairline, slight
  * radius. The nebula lives around them, never under them. */
 .fl-header,
@@ -107,7 +172,8 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: var(--starfield), var(--nebula-header),
+  background-image:
+    var(--starfield), var(--nebula-header),
     linear-gradient(90deg, var(--surface) 0%, transparent 22%);
   background-repeat: no-repeat; /* each star/cloud paints once, not tiled */
 }
@@ -116,16 +182,24 @@ body {
   position: relative;
   z-index: 1;
 }
+/* The "First Light" wordmark — the one place the display face appears. Michroma
+ * is wide, so it sits at a slightly smaller size with mission-patch tracking; it
+ * reads as an instrument-panel wordmark, not a logo dump. Weight 400 only (the
+ * face ships no bold). --gold is scarce, so the wordmark stays warm-white text. */
 .fl-header h1 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.11em;
+  line-height: 1.15;
+  color: var(--text-primary);
 }
 .fl-header .fl-sub {
   color: var(--text-secondary);
-  font-size: 13px;
-  margin-top: 2px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  margin-top: 5px;
 }
 
 /* Quiet dark/light toggle — low-emphasis, token-only, never gold (not signal).
@@ -216,7 +290,9 @@ body {
   background: var(--bar-active); /* in progress */
 }
 .fl-leg-notstarted {
-  background: var(--neutral-bar); /* the quiet resting state: gunmetal hardware */
+  background: var(
+    --neutral-bar
+  ); /* the quiet resting state: gunmetal hardware */
   border: 1px solid var(--neutral-edge);
 }
 .fl-leg-done {
@@ -290,7 +366,9 @@ body {
   appearance: none;
   border: 1px solid var(--gold);
   background: var(--gold);
-  color: var(--text-on-gold); /* ink on gold — legible on the gold fill in both modes */
+  color: var(
+    --text-on-gold
+  ); /* ink on gold — legible on the gold fill in both modes */
   font: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -313,7 +391,8 @@ body {
 
 /* ── save-error panel (plain-language GitHub failures) ─────────────────────── */
 .fl-save-errors {
-  background: linear-gradient(var(--blocked-bg), var(--blocked-bg)) var(--surface);
+  background: linear-gradient(var(--blocked-bg), var(--blocked-bg))
+    var(--surface);
   border: 1px solid var(--border-hair);
   border-radius: 10px;
   font-size: 13px;
@@ -346,6 +425,9 @@ body {
   right: 24px;
   bottom: 20px;
   z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   background: var(--surface-raised);
   border: 1px solid var(--border-hair);
   border-radius: 8px;
@@ -353,8 +435,40 @@ body {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-secondary);
-  box-shadow: 0 4px 12px var(--bar-shade);
+  box-shadow: 0 6px 18px var(--shadow-lift);
   max-width: 420px;
+}
+/* A glyph per kind (unicode, no icon lib): ✓ success · ⚠ warning · › info.
+ * Success/info glyphs stay quiet; the warning glyph borrows gold-as-text (the
+ * sanctioned warn tint), never a saturated fill. */
+.fl-toast-icon {
+  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 1;
+}
+.fl-toast-success .fl-toast-icon {
+  color: var(--bar-active);
+}
+.fl-toast-warn .fl-toast-icon {
+  color: var(--gold-text);
+}
+.fl-toast-info .fl-toast-icon {
+  color: var(--text-telemetry);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fl-toast {
+    animation: fl-toast-in 160ms ease-out both;
+  }
+}
+@keyframes fl-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── settings modal (quiet; no gold — Save on the toolbar owns gold) ───────── */
@@ -377,7 +491,7 @@ body {
   box-shadow: 0 8px 28px var(--bar-shade);
 }
 .fl-modal h2 {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
@@ -398,11 +512,31 @@ body {
   color: var(--text-primary);
   font-weight: 500;
 }
+
+/* Grouped fields (Repository / Access) with a console-label header + a hairline
+ * separator between groups — same sectioning language as the edit panel. */
+.fl-modal-section + .fl-modal-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-hair);
+}
+.fl-modal-section-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  color: var(--text-telemetry);
+  margin-bottom: 10px;
+}
+
 .fl-field {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
+}
+.fl-field:last-child {
+  margin-bottom: 0;
 }
 .fl-field span {
   flex: 0 0 64px;
@@ -420,14 +554,49 @@ body {
   font-size: 12px;
   padding: 7px 9px;
 }
-.fl-field input:focus {
-  outline: 1px solid var(--text-secondary);
+.fl-field input:hover {
+  border-color: var(--text-telemetry);
 }
+.fl-field input:focus {
+  outline: none; /* keyboard focus draws the token ring; mouse focus tints the border */
+  border-color: var(--text-secondary);
+}
+
+/* The PAT note as a quiet info row — a dim lock glyph beside the explanation, so
+ * "this stays private" reads at a glance instead of as a wall of small print. */
+.fl-modal-lock {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 9px 11px;
+  background: var(--canvas);
+  border: 1px solid var(--border-hair);
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.fl-modal-lock-glyph {
+  flex: 0 0 auto;
+  color: var(--text-telemetry);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.fl-modal-lock a {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.fl-modal-lock b {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 .fl-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 18px;
 }
 /* Primary-but-not-gold: the inverted chip (same vocabulary as the zoom seg). */
 .fl-modal-save {
@@ -448,11 +617,14 @@ body {
 .fl-banner {
   /* Alert tint LAYERED over solid --surface: --blocked-bg is translucent in
    * dark mode, and a §5 panel must stay opaque so no nebula sits behind text. */
-  background: linear-gradient(var(--blocked-bg), var(--blocked-bg)) var(--surface);
+  background: linear-gradient(var(--blocked-bg), var(--blocked-bg))
+    var(--surface);
   font-size: 13px;
 }
 .fl-banner.fl-banner-warn {
-  background: var(--surface-raised); /* warning banner (gold-text sits on this) */
+  background: var(
+    --surface-raised
+  ); /* warning banner (gold-text sits on this) */
 }
 .fl-banner-summary {
   display: flex;
@@ -612,43 +784,118 @@ body {
   border-radius: 10px;
   display: flex;
   flex-direction: column;
+  /* A soft edge shadow so the panel reads as a LAYER floating above the chart,
+   * not a second column welded to it. */
+  box-shadow: -10px 0 26px -12px var(--shadow-lift);
+}
+/* Slide-in from the right (reduced-motion-guarded — a reduced-motion viewer gets
+ * the panel already in place, no travel). */
+@media (prefers-reduced-motion: no-preference) {
+  .fl-panel {
+    animation: fl-panel-in 180ms ease-out both;
+  }
+}
+@keyframes fl-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 .fl-panel-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 13px 16px;
   border-bottom: 1px solid var(--border-hair);
   position: sticky;
   top: 0;
   background: var(--surface-raised);
   z-index: 1;
 }
+.fl-panel-head-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .fl-panel-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
-  line-height: 1.3;
+  line-height: 1.25;
+}
+/* A squad / kind chip under the task name — colour-dotted identity, so the panel
+ * header answers "what am I editing?" at a glance. */
+.fl-panel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+  border-radius: 999px;
+  padding: 2px 9px 2px 7px;
+}
+.fl-panel-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  flex: 0 0 auto;
 }
 .fl-panel-close {
   appearance: none;
   border: 1px solid var(--border-hair);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
-  padding: 4px 8px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
   cursor: pointer;
   flex: 0 0 auto;
 }
 .fl-panel-close:hover {
   background: var(--surface);
   color: var(--text-primary);
+  border-color: var(--text-telemetry);
 }
 .fl-panel-body {
-  padding: 12px 16px 16px;
+  padding: 4px 16px 16px;
+}
+
+/* ── sectioned structure (IDENTITY / TIMING / DEPENDENCIES / RISK) ─────────────
+ * The panel is grouped into labelled sections with a hairline separator and
+ * breathing room, so it reads as a designed form, not a flat field stack. */
+.fl-panel-section {
+  padding: 14px 0 2px;
+}
+.fl-panel-section + .fl-panel-section {
+  border-top: 1px solid var(--border-hair);
+}
+.fl-panel-section-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  color: var(--text-telemetry);
+  margin-bottom: 12px;
+}
+.fl-panel-lead {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 12px 0 2px;
 }
 .fl-panel-note {
   font-size: 12px;
@@ -757,16 +1004,81 @@ body {
   color: var(--text-secondary);
   font: inherit;
   font-size: 11px;
-  padding: 5px 9px;
+  padding: 5px 10px;
   cursor: pointer;
 }
 .fl-panel-seg button:last-child {
   border-right: none;
 }
+.fl-panel-seg button:hover:not([aria-pressed="true"]) {
+  background: var(--surface);
+  color: var(--text-primary);
+}
 .fl-panel-seg button[aria-pressed="true"] {
   background: var(--text-primary);
   color: var(--canvas);
   font-weight: 500;
+}
+
+/* ── toggle switch (token-styled, replaces raw milestone/deadline checkboxes) ──
+ * A real switch reads as an app control, not a form checkbox. Off = hairline
+ * track; on = --bar-active (activity, NEVER gold — the panel carries no gold).
+ * The knob transition is reduced-motion-guarded below. */
+.fl-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.fl-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.fl-toggle-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border-hair);
+}
+.fl-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-telemetry);
+}
+.fl-toggle input:checked + .fl-toggle-track {
+  background: var(--bar-active);
+  border-color: var(--bar-active);
+}
+.fl-toggle input:checked + .fl-toggle-track .fl-toggle-knob {
+  left: 18px;
+  background: var(--text-on-accent);
+}
+.fl-toggle input:focus-visible + .fl-toggle-track {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.fl-toggle:hover .fl-toggle-track {
+  border-color: var(--text-telemetry);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fl-toggle-track,
+  .fl-toggle-knob {
+    transition:
+      background 140ms ease,
+      border-color 140ms ease,
+      left 140ms ease;
+  }
 }
 
 /* dependency chips + picker */
@@ -779,14 +1091,27 @@ body {
 .fl-chip-dep {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   flex-wrap: wrap;
   background: var(--canvas);
   border: 1px solid var(--border-hair);
-  border-radius: 6px;
-  padding: 4px 6px 4px 9px;
+  /* Rounded, but not a full pill — long dependency names wrap to two lines, and
+   * a 9px radius stays a tidy rounded card there instead of a tall blob. */
+  border-radius: 9px;
+  padding: 5px 7px 5px 11px;
   font-size: 12px;
   color: var(--text-primary);
+}
+.fl-chip-dep:hover {
+  border-color: var(--text-telemetry);
+}
+/* Kind glyph — a gold-diamond echo for gate targets (◆), telemetry-dim so it
+ * tags identity without adding a new gold. Regular targets carry no glyph. */
+.fl-chip-glyph {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-telemetry);
+  line-height: 1;
 }
 .fl-chip-label {
   flex: 1 1 auto;
@@ -801,8 +1126,8 @@ body {
   font: inherit;
   line-height: 1;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
+  padding: 2px 5px;
+  border-radius: 999px;
   flex: 0 0 auto;
 }
 .fl-chip-adv:hover,
@@ -810,8 +1135,20 @@ body {
   background: var(--surface-raised);
   color: var(--text-primary);
 }
+/* The remove × is quiet until the chip is hovered/focused — it "reveals" on
+ * approach, but stays keyboard-operable (focus-within brings it to full). */
 .fl-chip-x {
   font-size: 15px;
+  opacity: 0.4;
+}
+.fl-chip-dep:hover .fl-chip-x,
+.fl-chip-dep:focus-within .fl-chip-x {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fl-chip-x {
+    transition: opacity 120ms ease;
+  }
 }
 .fl-chip-pop {
   flex: 1 1 100%;
@@ -854,9 +1191,15 @@ body {
   color: var(--text-telemetry);
   padding: 3px 8px;
 }
+/* Command-palette row: the label on the left, a keyboard hint on the right that
+ * only shows on hover/focus — the row reads as a pickable command, not a plain
+ * <option>. */
 .fl-dep-opt {
   appearance: none;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   width: 100%;
   text-align: left;
   border: none;
@@ -868,8 +1211,29 @@ body {
   border-radius: 5px;
   cursor: pointer;
 }
-.fl-dep-opt:hover {
+.fl-dep-opt:hover,
+.fl-dep-opt:focus-visible {
   background: var(--surface-raised);
+}
+.fl-dep-opt-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fl-dep-opt-kbd {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-telemetry);
+  border: 1px solid var(--border-hair);
+  border-radius: 4px;
+  padding: 1px 5px;
+  opacity: 0;
+}
+.fl-dep-opt:hover .fl-dep-opt-kbd,
+.fl-dep-opt:focus-visible .fl-dep-opt-kbd {
+  opacity: 1;
 }
 .fl-dep-empty {
   font-size: 12px;
@@ -879,7 +1243,8 @@ body {
 
 /* the inline cycle warning (blocked ink, never gold) */
 .fl-panel-warn {
-  background: linear-gradient(var(--blocked-bg), var(--blocked-bg)) var(--surface);
+  background: linear-gradient(var(--blocked-bg), var(--blocked-bg))
+    var(--surface);
   border: 1px solid var(--blocked-fg);
   border-radius: 6px;
   padding: 7px 10px;
@@ -949,18 +1314,24 @@ body {
   font-family: var(--font-mono);
   color: var(--text-telemetry);
 }
+/* The computed telemetry, boxed as an instrument-readout card — mono, dim, on a
+ * recessed --canvas panel with a top-edge accent hairline. It's a feature (the
+ * engine's live numbers), so it reads like a console readout, not a footnote. */
 .fl-panel-tel {
-  margin-top: 4px;
-  padding: 12px 16px 16px;
-  border-top: 1px solid var(--border-hair);
+  margin: 14px 16px 18px;
+  padding: 11px 13px 12px;
+  background: var(--canvas);
+  border: 1px solid var(--border-hair);
+  border-top: 1px solid var(--tile-edge);
+  border-radius: 8px;
 }
 .fl-panel-tel-label {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   font-family: var(--font-mono);
   color: var(--text-telemetry);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .fl-tel-grid {
   display: grid;

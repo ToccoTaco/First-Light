@@ -60,7 +60,8 @@ function todayISO(): string {
 
 /** The duration a task's schedule carries (pinned milestones may omit it → 0). */
 function durationOf(task: Task): number {
-  return "duration" in task.schedule && typeof task.schedule.duration === "number"
+  return "duration" in task.schedule &&
+    typeof task.schedule.duration === "number"
     ? task.schedule.duration
     : 0;
 }
@@ -96,7 +97,7 @@ export interface EditPanelProps {
 }
 
 export function EditPanel(props: EditPanelProps) {
-  const { row, task, sched, squadIds, conflicts } = props;
+  const { row, task, sched, squads, squadIds, conflicts } = props;
 
   const isGroup = row.kind === "group";
   const isSummary = row.kind === "summary";
@@ -104,10 +105,35 @@ export function EditPanel(props: EditPanelProps) {
   const squadId = task ? squadOfTaskId(task.id, squadIds) : row.squadId;
   const isSquadLeaf = !!task && !isSpine && !isSummary && squadId !== null;
 
+  // The header identity chip: a squad colour-dot + name for squad tasks, or a
+  // neutral kind label for spine gates / rolled-up rows. It answers "what am I
+  // editing?" at the top of the panel.
+  const squad = squadId ? squads.find((s) => s.id === squadId) : undefined;
+  const chip: { color?: string; label: string } = isSpine
+    ? { label: row.kind === "gate-review" ? "Review gate" : "Test gate" }
+    : isSummary
+      ? { label: "Summary" }
+      : isGroup
+        ? { label: "Group" }
+        : squad
+          ? { color: squad.color, label: squad.name }
+          : { label: "Task" };
+
   return (
     <aside className="fl-panel" aria-label="Task editor">
       <div className="fl-panel-head">
-        <div className="fl-panel-title">{row.name}</div>
+        <div className="fl-panel-head-main">
+          <div className="fl-panel-title">{row.name}</div>
+          <span className="fl-panel-chip">
+            {chip.color && (
+              <span
+                className="fl-panel-chip-dot"
+                style={{ background: chip.color }}
+              />
+            )}
+            {chip.label}
+          </span>
+        </div>
         <button
           type="button"
           className="fl-panel-close"
@@ -131,7 +157,9 @@ export function EditPanel(props: EditPanelProps) {
           ) : (
             <SpineEditor {...props} task={task} />
           )}
-          {sched && <Telemetry task={task} sched={sched} conflicts={conflicts} />}
+          {sched && (
+            <Telemetry task={task} sched={sched} conflicts={conflicts} />
+          )}
         </>
       ) : (
         <div className="fl-panel-note">This row has nothing to edit.</div>
@@ -142,7 +170,13 @@ export function EditPanel(props: EditPanelProps) {
 
 // ── read-only rollups (groups + summaries) ──────────────────────────────────────
 
-function RolledUpInfo({ row, isSummary }: { row: ChartRow; isSummary: boolean }) {
+function RolledUpInfo({
+  row,
+  isSummary,
+}: {
+  row: ChartRow;
+  isSummary: boolean;
+}) {
   return (
     <div className="fl-panel-body">
       <p className="fl-panel-note">
@@ -167,44 +201,65 @@ function RolledUpInfo({ row, isSummary }: { row: ChartRow; isSummary: boolean })
 
 // ── the spine editor (reviews / gates) ──────────────────────────────────────────
 
-function SpineEditor(
-  props: EditPanelProps & { task: Task },
-) {
+function SpineEditor(props: EditPanelProps & { task: Task }) {
   const { task } = props;
   return (
     <div className="fl-panel-body">
-      <p className="fl-panel-note">
-        A mission-spine {props.row.kind === "gate-review" ? "review" : "test gate"}.
-        Pin it to a real date once the team commits to one.
+      <p className="fl-panel-lead">
+        A mission-spine{" "}
+        {props.row.kind === "gate-review" ? "review" : "test gate"}. Pin it to a
+        real date once the team commits to one.
       </p>
-      <NameField task={task} onPatch={props.onPatch} />
-      <StatusField task={task} onPatch={props.onPatch} />
-      <TimingFields task={task} onPatch={props.onPatch} showDuration={false} />
-      <DeadlineField task={task} onPatch={props.onPatch} />
-      <DependencyField {...props} task={task} />
+      <Section label="Identity">
+        <NameField task={task} onPatch={props.onPatch} />
+        <StatusField task={task} onPatch={props.onPatch} />
+      </Section>
+      <Section label="Timing">
+        <TimingFields
+          task={task}
+          onPatch={props.onPatch}
+          showDuration={false}
+        />
+      </Section>
+      <Section label="Dependencies">
+        <DependencyField {...props} task={task} />
+      </Section>
+      <Section label="Risk">
+        <DeadlineField task={task} onPatch={props.onPatch} />
+      </Section>
     </div>
   );
 }
 
 // ── the full squad-task editor ──────────────────────────────────────────────────
 
-function SquadEditor(
-  props: EditPanelProps & { task: Task; squadId: string },
-) {
+function SquadEditor(props: EditPanelProps & { task: Task; squadId: string }) {
   const { task } = props;
   const isMilestone = task.milestone === true;
   const showPercent = durationOf(task) >= 7 && !isMilestone;
 
   return (
     <div className="fl-panel-body">
-      <NameField task={task} onPatch={props.onPatch} />
-      <StatusField task={task} onPatch={props.onPatch} />
-      {showPercent && <PercentField task={task} onPatch={props.onPatch} />}
-      <ConfidenceField task={task} onPatch={props.onPatch} />
-      <TimingFields task={task} onPatch={props.onPatch} showDuration={!isMilestone} />
-      <MilestoneField task={task} onPatch={props.onPatch} />
-      <DeadlineField task={task} onPatch={props.onPatch} />
-      <DependencyField {...props} task={task} />
+      <Section label="Identity">
+        <NameField task={task} onPatch={props.onPatch} />
+        <StatusField task={task} onPatch={props.onPatch} />
+        {showPercent && <PercentField task={task} onPatch={props.onPatch} />}
+      </Section>
+      <Section label="Timing">
+        <TimingFields
+          task={task}
+          onPatch={props.onPatch}
+          showDuration={!isMilestone}
+        />
+        <MilestoneField task={task} onPatch={props.onPatch} />
+      </Section>
+      <Section label="Dependencies">
+        <DependencyField {...props} task={task} />
+      </Section>
+      <Section label="Risk">
+        <ConfidenceField task={task} onPatch={props.onPatch} />
+        <DeadlineField task={task} onPatch={props.onPatch} />
+      </Section>
       <div className="fl-panel-add">
         <button
           type="button"
@@ -339,7 +394,10 @@ function TimingFields({
               min={0}
               value={durationOf(task)}
               onChange={(e) =>
-                onPatch(task.id, resizePatch(Math.max(0, Number(e.target.value))))
+                onPatch(
+                  task.id,
+                  resizePatch(Math.max(0, Number(e.target.value))),
+                )
               }
             />
             <span className="fl-panel-unit">days</span>
@@ -354,14 +412,12 @@ function MilestoneField({ task, onPatch }: FieldProps) {
   const on = task.milestone === true;
   return (
     <Field label="Milestone">
-      <label className="fl-panel-check">
-        <input
-          type="checkbox"
-          checked={on}
-          onChange={(e) => onPatch(task.id, milestonePatch(e.target.checked))}
-        />
-        <span>Zero-duration marker</span>
-      </label>
+      <Toggle
+        checked={on}
+        onChange={(v) => onPatch(task.id, milestonePatch(v))}
+      >
+        Zero-duration marker
+      </Toggle>
     </Field>
   );
 }
@@ -371,21 +427,19 @@ function DeadlineField({ task, onPatch }: FieldProps) {
   return (
     <Field label="Deadline">
       <div className="fl-panel-stack">
-        <label className="fl-panel-check">
-          <input
-            type="checkbox"
-            checked={!!dl}
-            onChange={(e) =>
-              onPatch(
-                task.id,
-                e.target.checked
-                  ? { deadline: { date: todayISO(), hard: false } }
-                  : { deadline: null },
-              )
-            }
-          />
-          <span>Has a deadline</span>
-        </label>
+        <Toggle
+          checked={!!dl}
+          onChange={(v) =>
+            onPatch(
+              task.id,
+              v
+                ? { deadline: { date: todayISO(), hard: false } }
+                : { deadline: null },
+            )
+          }
+        >
+          Has a deadline
+        </Toggle>
         {dl && (
           <div className="fl-panel-inline">
             <input
@@ -399,18 +453,16 @@ function DeadlineField({ task, onPatch }: FieldProps) {
                 })
               }
             />
-            <label className="fl-panel-check">
-              <input
-                type="checkbox"
-                checked={dl.hard}
-                onChange={(e) =>
-                  onPatch(task.id, {
-                    deadline: { date: dl.date, hard: e.target.checked },
-                  })
-                }
-              />
-              <span>Hard</span>
-            </label>
+            <Toggle
+              checked={dl.hard}
+              onChange={(v) =>
+                onPatch(task.id, {
+                  deadline: { date: dl.date, hard: v },
+                })
+              }
+            >
+              Hard
+            </Toggle>
           </div>
         )}
       </div>
@@ -424,6 +476,11 @@ function DependencyField(props: EditPanelProps & { task: Task }) {
   const { task, allTasks, squads, squadIds, conflicts } = props;
   const nameById = useMemo(
     () => new Map(allTasks.map((t) => [t.id, t.name])),
+    [allTasks],
+  );
+  // Which targets are gates — drives the ◆ kind glyph on their chips.
+  const isGateById = useMemo(
+    () => new Map(allTasks.map((t) => [t.id, !!t.gate])),
     [allTasks],
   );
   const eligible = useMemo(
@@ -456,10 +513,12 @@ function DependencyField(props: EditPanelProps & { task: Task }) {
   const removeDep = (id: string) =>
     replaceDeps(deps.filter((d) => depId(d) !== id));
   const setDepAdv = (id: string, type: "FS" | "SS", lag: number) =>
-    replaceDeps(deps.map((d) => (depId(d) === id ? makeDep(id, type, lag) : d)));
+    replaceDeps(
+      deps.map((d) => (depId(d) === id ? makeDep(id, type, lag) : d)),
+    );
 
   return (
-    <Field label="Depends on" stacked>
+    <>
       {inCycle && (
         <div className="fl-panel-warn" role="alert">
           This dependency creates a loop — the schedule is paused until it's
@@ -477,13 +536,14 @@ function DependencyField(props: EditPanelProps & { task: Task }) {
             key={depId(d)}
             dep={d}
             label={nameById.get(depId(d)) ?? depId(d)}
+            isGate={isGateById.get(depId(d)) ?? false}
             onRemove={() => removeDep(depId(d))}
             onAdv={(type, lag) => setDepAdv(depId(d), type, lag)}
           />
         ))}
       </div>
       <DepPicker groups={groups} onAdd={addDep} />
-    </Field>
+    </>
   );
 }
 
@@ -507,7 +567,10 @@ function DepPicker({
   const filtered = groups
     .map(
       ([group, items]) =>
-        [group, items.filter((it) => it.name.toLowerCase().includes(q))] as const,
+        [
+          group,
+          items.filter((it) => it.name.toLowerCase().includes(q)),
+        ] as const,
     )
     .filter(([, items]) => items.length > 0);
 
@@ -545,7 +608,10 @@ function DepPicker({
                     setOpen(false);
                   }}
                 >
-                  {it.name}
+                  <span className="fl-dep-opt-name">{it.name}</span>
+                  <span className="fl-dep-opt-kbd" aria-hidden="true">
+                    add
+                  </span>
                 </button>
               ))}
             </div>
@@ -559,11 +625,13 @@ function DepPicker({
 function DepChip({
   dep,
   label,
+  isGate,
   onRemove,
   onAdv,
 }: {
   dep: Dependency;
   label: string;
+  isGate: boolean;
   onRemove: () => void;
   onAdv: (type: "FS" | "SS", lag: number) => void;
 }) {
@@ -576,6 +644,11 @@ function DepChip({
       : "";
   return (
     <span className="fl-chip-dep">
+      {isGate && (
+        <span className="fl-chip-glyph" aria-hidden="true">
+          ◆
+        </span>
+      )}
       <span className="fl-chip-label">
         after: {label}
         {suffix}
@@ -732,10 +805,48 @@ function Field({
   stacked?: boolean;
 }) {
   return (
-    <div className={`fl-panel-field${stacked ? " fl-panel-field-stacked" : ""}`}>
+    <div
+      className={`fl-panel-field${stacked ? " fl-panel-field-stacked" : ""}`}
+    >
       <div className="fl-panel-label">{label}</div>
       <div className="fl-panel-control">{children}</div>
     </div>
+  );
+}
+
+/** A labelled group of fields — the console-label sectioning (IDENTITY / TIMING /
+ * DEPENDENCIES / RISK) that gives the panel its designed rhythm. */
+function Section({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section className="fl-panel-section">
+      <div className="fl-panel-section-label">{label}</div>
+      {children}
+    </section>
+  );
+}
+
+/** A token-styled toggle switch — the app-like replacement for a raw checkbox. */
+function Toggle({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label className="fl-toggle">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="fl-toggle-track">
+        <span className="fl-toggle-knob" />
+      </span>
+      <span>{children}</span>
+    </label>
   );
 }
 

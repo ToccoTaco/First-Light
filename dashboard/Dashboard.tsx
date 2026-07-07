@@ -60,7 +60,8 @@ function Hero({ countdown }: { countdown: CountdownModel }) {
       <div className="fl-dash-hero-inner">
         {countdown.kind === "countdown" && (
           <>
-            <div className="fl-countdown-num">T–{countdown.days} DAYS</div>
+            <div className="fl-countdown-kicker">T–minus</div>
+            <div className="fl-countdown-num">{countdown.days} DAYS</div>
             <div className="fl-countdown-target">
               to {countdown.gateName} · {fmtDate(countdown.gateDateISO)}
             </div>
@@ -121,12 +122,18 @@ function Rollups({ rollups }: { rollups: RollupsModel }) {
       <TileLabel>Progress</TileLabel>
       <div className="fl-prog-overall">
         <ProgressBar percent={rollups.overall.percent} name="Overall" />
-        <div className="fl-prog-counts">{countsLine(rollups.overall.counts)}</div>
+        <div className="fl-prog-counts">
+          {countsLine(rollups.overall.counts)}
+        </div>
       </div>
       <div className="fl-prog-squads">
         {rollups.squads.map((s: SquadRollup) => (
           <div key={s.squadId} className="fl-prog-squad">
-            <ProgressBar percent={s.percent} chipColor={s.color} name={s.name} />
+            <ProgressBar
+              percent={s.percent}
+              chipColor={s.color}
+              name={s.name}
+            />
             <div className="fl-prog-counts">{countsLine(s.counts)}</div>
           </div>
         ))}
@@ -338,7 +345,11 @@ export function Dashboard({
     <div className="fl-dash">
       <Hero countdown={model.countdown} />
       <div className="fl-dash-actions">
-        <button type="button" className="fl-review-link" onClick={onReviewSpine}>
+        <button
+          type="button"
+          className="fl-review-link"
+          onClick={onReviewSpine}
+        >
           Review spine →
         </button>
       </div>
