@@ -34,6 +34,9 @@ function copyStaticData(): Plugin {
 }
 
 // Vite root = repo root; index.html is the viewer entry.
+// base "./" — GitHub Pages serves project sites under /<repo>/, so all asset
+// and data URLs must be relative to the page, not the domain root.
 export default defineConfig({
+  base: "./",
   plugins: [react(), copyStaticData()],
 });
