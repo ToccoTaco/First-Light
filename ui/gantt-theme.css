@@ -70,6 +70,48 @@
   border-bottom: 1px solid var(--border-hair);
 }
 
+/* The time-axis header is a zoom handle: press-drag horizontally to stretch or
+ * compress pixels-per-day (wired in gantt-adapter.ts). Advertise it with the
+ * horizontal-resize cursor on hover, and hold it for the whole drag (a class the
+ * adapter toggles on the mount node) while suppressing text selection so fast
+ * drags read cleanly. */
+.gantt_task_scale,
+.gantt_task_scale * {
+  cursor: ew-resize;
+}
+.fl-zoom-dragging,
+.fl-zoom-dragging * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
+/* ── scrollbars: dark-navy track, subtle raised thumb (tokens only) ──────────── */
+/* The layout (gantt-adapter.ts) mounts an always-present horizontal scrollbar
+ * plus the vertical one; both are native-scroll surfaces we tint onto tokens so
+ * they read as part of the console, not the stock light chrome. */
+.gantt_hor_scroll,
+.gantt_ver_scroll {
+  scrollbar-color: var(--surface-raised) var(--surface); /* Firefox: thumb track */
+  scrollbar-width: thin;
+}
+.gantt_hor_scroll::-webkit-scrollbar,
+.gantt_ver_scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+  background: var(--surface);
+}
+.gantt_hor_scroll::-webkit-scrollbar-thumb,
+.gantt_ver_scroll::-webkit-scrollbar-thumb {
+  background: var(--surface-raised);
+  border-radius: 6px;
+  /* Inset the thumb with a track-coloured border so it reads as a slim pill. */
+  border: 3px solid var(--surface);
+}
+.gantt_hor_scroll::-webkit-scrollbar-thumb:hover,
+.gantt_ver_scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hair);
+}
+
 /* Every stock-skin border → hairline navy. */
 .gantt_grid,
 .gantt_grid_head_cell,

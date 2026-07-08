@@ -69,30 +69,66 @@ export interface GanttView {
 // free of raw colour values.
 const NEUTRAL = NEUTRAL_COLOR;
 
-// Scale presets: week = day cells, month = week cells, quarter = month cells.
-const SCALES: Record<Zoom, { scales: object[]; minColWidth: number }> = {
-  week: {
-    scales: [
-      { unit: "month", step: 1, format: "%F %Y" },
-      { unit: "day", step: 1, format: "%j" },
-    ],
-    minColWidth: 28,
-  },
-  month: {
-    scales: [
-      { unit: "month", step: 1, format: "%F %Y" },
-      { unit: "week", step: 1, format: "Wk %W" },
-    ],
-    minColWidth: 60,
-  },
-  quarter: {
+// ── continuous zoom model ─────────────────────────────────────────────────────
+// The timeline is driven by ONE continuous value, pxPerDay (pixels per calendar
+// day). A header drag moves it smoothly; the three public presets (week / month
+// / quarter) are just target pxPerDay values the API snaps to. `scalesFor` picks
+// which scale UNITS to label at a given pxPerDay so text stays legible — but it
+// always derives `min_column_width` FROM pxPerDay, so crossing a label tier is a
+// smooth stretch, never a jump: the pixel width of a day is a pure function of
+// pxPerDay, independent of which tier is showing.
+const PX_PER_DAY_MIN = 1.5;
+const PX_PER_DAY_MAX = 80;
+const DAYS_PER_MONTH = 30.4375; // avg — keeps the month tier ~continuous with weeks
+
+// Preset → target pxPerDay. Chosen to reproduce the old presets' cell widths:
+// week ≈ 28px day cells, month ≈ 60px week cells, quarter ≈ 56px month cells.
+const ZOOM_PX_PER_DAY: Record<Zoom, number> = {
+  week: 28,
+  month: 60 / 7,
+  quarter: 56 / DAYS_PER_MONTH,
+};
+
+const clampPxPerDay = (v: number): number =>
+  Math.min(PX_PER_DAY_MAX, Math.max(PX_PER_DAY_MIN, v));
+
+// pxPerDay → label tier. High zoom labels every day; medium labels weeks under
+// months; low labels months under years. min_column_width is derived from
+// pxPerDay in EVERY tier (day cells = pxPerDay, week cells = 7×, month cells =
+// avg-days×) so a day is the same pixel width on both sides of any tier boundary.
+function scalesFor(pxPerDay: number): { scales: object[]; minColWidth: number } {
+  if (pxPerDay >= 16) {
+    return {
+      scales: [
+        { unit: "month", step: 1, format: "%F %Y" },
+        { unit: "day", step: 1, format: "%j" },
+      ],
+      minColWidth: Math.round(pxPerDay),
+    };
+  }
+  if (pxPerDay >= 5) {
+    return {
+      scales: [
+        { unit: "month", step: 1, format: "%F %Y" },
+        { unit: "week", step: 1, format: "Wk %W" },
+      ],
+      minColWidth: Math.round(pxPerDay * 7),
+    };
+  }
+  return {
     scales: [
       { unit: "year", step: 1, format: "%Y" },
       { unit: "month", step: 1, format: "%M" },
     ],
-    minColWidth: 56,
-  },
-};
+    minColWidth: Math.round(pxPerDay * DAYS_PER_MONTH),
+  };
+}
+
+// How much date range to pad on each side of the task span so there is always
+// somewhere to pan the horizontal scrollbar, instead of the range hugging the
+// bars. (This also subsumes the old ghost-union "+7d" edge fix — months of pad
+// on the end comfortably clears any baseline reaching past the current finish.)
+const RANGE_PAD_MONTHS = 3;
 
 /** The per-row fields we attach to every DHTMLX task for the templates to read. */
 interface FLFields {
@@ -153,6 +189,26 @@ export function createGanttView(
   gantt.config.scale_height = 46;
   gantt.config.grid_width = 460; // 260 + 112 + 88
   gantt.config.grid_resize = true;
+
+  // Explicit layout so a horizontal scrollbar is ALWAYS present (Community-safe):
+  // grid + timeline share one vertical scrollbar (rows stay aligned) and one
+  // horizontal scrollbar spans the bottom, letting the lead pan continuously
+  // across the whole (padded) date range at a fixed zoom instead of switching
+  // presets to see further out. Custom overlays still live in the timeline's own
+  // scrolling data layer (gantt.$task_data), so markers + ghosts pan with the bars.
+  gantt.config.layout = {
+    css: "gantt_container",
+    rows: [
+      {
+        cols: [
+          { view: "grid", scrollX: "scrollHor", scrollY: "scrollVer" },
+          { view: "timeline", scrollX: "scrollHor", scrollY: "scrollVer" },
+          { view: "scrollbar", id: "scrollVer" },
+        ],
+      },
+      { view: "scrollbar", id: "scrollHor", height: 20 },
+    ],
+  };
 
   const shortDate = gantt.date.date_to_str("%M %j"); // e.g. "Jul 25"
   const isoToDate = gantt.date.str_to_date("%Y-%m-%d");
@@ -351,13 +407,18 @@ export function createGanttView(
   }
 
   let initialised = false;
+  // Zoom is a continuous pxPerDay; currentZoom only tracks which preset the app
+  // last asked for, so a re-render on an unrelated edit (which arrives with that
+  // same preset) does NOT stomp a custom drag-zoom back to the preset value.
   let currentZoom: Zoom = "month";
+  let currentPxPerDay = ZOOM_PX_PER_DAY[currentZoom];
   let markerData: ChartModel["markers"] | null = null;
   const markerEls = new Map<string, HTMLDivElement>();
 
-  const applyScales = (zoom: Zoom) => {
-    gantt.config.scales = SCALES[zoom].scales as never;
-    gantt.config.min_column_width = SCALES[zoom].minColWidth;
+  const applyScales = () => {
+    const s = scalesFor(currentPxPerDay);
+    gantt.config.scales = s.scales as never;
+    gantt.config.min_column_width = s.minColWidth;
   };
 
   // Custom vertical markers (the `marker` plugin isn't bundled). Positioned by
@@ -410,22 +471,35 @@ export function createGanttView(
   // zero width at the right edge and silently vanishes.
   let modelRange: { min: string; max: string } | null = null;
 
-  const applyGhostRange = () => {
-    if (ghostData && ghostData.length > 0 && modelRange) {
-      let min = modelRange.min;
-      let max = modelRange.max;
+  const applyRange = () => {
+    if (!modelRange) {
+      // No parsed model yet → let DHTMLX derive its own range.
+      gantt.config.start_date = undefined;
+      gantt.config.end_date = undefined;
+      return;
+    }
+    // Base span = the current model. When ghosts are active, widen to the UNION
+    // of current + baseline dates (otherwise a baseline reaching past the current
+    // finish gets clamped to zero width and vanishes). Either way, pad by several
+    // months on each side so the horizontal scrollbar always has room to pan.
+    let min = modelRange.min;
+    let max = modelRange.max;
+    if (ghostData && ghostData.length > 0) {
       for (const g of ghostData) {
         if (g.startISO < min) min = g.startISO;
         if (g.endISO > max) max = g.endISO;
       }
-      gantt.config.start_date = isoToDate(min);
-      // A week of air past the last bar so nothing sits flush on the edge.
-      gantt.config.end_date = gantt.date.add(isoToDate(max), 7, "day");
-    } else {
-      // Back to DHTMLX's own auto range (derived from the parsed tasks).
-      gantt.config.start_date = undefined;
-      gantt.config.end_date = undefined;
     }
+    gantt.config.start_date = gantt.date.add(
+      isoToDate(min),
+      -RANGE_PAD_MONTHS,
+      "month",
+    );
+    gantt.config.end_date = gantt.date.add(
+      isoToDate(max),
+      RANGE_PAD_MONTHS,
+      "month",
+    );
   };
 
   const clearGhostEls = (keep?: Set<string>) => {
@@ -473,9 +547,97 @@ export function createGanttView(
   };
   gantt.attachEvent("onGanttRender", drawGhosts);
 
+  // ── continuous drag-zoom on the time-axis header ────────────────────────────
+  // Press-and-drag horizontally anywhere on the scale header to change pxPerDay
+  // continuously (right stretches, left compresses). Listeners are DELEGATED off
+  // the STABLE mount node (container) so they survive DHTMLX re-renders/resetLayout;
+  // the move/up handlers live on `document` so a fast drag that outruns the header
+  // never drops. The date under the press point is pinned there throughout: after
+  // each rAF-throttled re-render we scroll so posFromDate(anchor) lands back at the
+  // recorded cursor offset — this is a separate path from render()'s scroll
+  // preservation, so the two never fight (render() just keeps whatever scroll the
+  // anchor left).
+  let zoomRaf = 0;
+  let drag: {
+    offsetX: number; // cursor x within the timeline viewport, fixed at press
+    anchorDate: Date; // the date under that x — stays put through the whole drag
+    startClientX: number;
+    basePxPerDay: number;
+  } | null = null;
+
+  const applyZoomRender = () => {
+    applyScales();
+    gantt.render(); // rebuilds the scale + fires onGanttRender → markers + ghosts
+    if (!drag) return;
+    // Pin the anchor date back under the press point.
+    const target = gantt.posFromDate(drag.anchorDate) - drag.offsetX;
+    const y = gantt.getScrollState().y;
+    gantt.scrollTo(Math.max(0, target), y);
+  };
+
+  const onZoomPointerMove = (e: PointerEvent) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.startClientX;
+    // Exponential mapping (~165px per e-fold) so a short drag spans a wide zoom
+    // range and the feel is uniform whether zoomed in or out.
+    currentPxPerDay = clampPxPerDay(drag.basePxPerDay * Math.exp(dx * 0.006));
+    if (!zoomRaf) {
+      zoomRaf = requestAnimationFrame(() => {
+        zoomRaf = 0;
+        applyZoomRender();
+      });
+    }
+  };
+
+  const endZoomDrag = () => {
+    if (!drag) return;
+    drag = null;
+    if (zoomRaf) {
+      cancelAnimationFrame(zoomRaf);
+      zoomRaf = 0;
+    }
+    document.removeEventListener("pointermove", onZoomPointerMove, true);
+    document.removeEventListener("pointerup", endZoomDrag, true);
+    document.removeEventListener("pointercancel", endZoomDrag, true);
+    container.classList.remove("fl-zoom-dragging");
+  };
+
+  const onZoomPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0 || !initialised) return;
+    const target = e.target as HTMLElement | null;
+    // Only the timeline scale header starts a zoom drag (the grid header, bars
+    // and rows keep their own behaviour).
+    if (!target || !target.closest(".gantt_task_scale")) return;
+    const left = gantt.$task.getBoundingClientRect().left;
+    const offsetX = e.clientX - left;
+    const scrollX = gantt.getScrollState().x;
+    const anchorDate = gantt.dateFromPos(offsetX + scrollX);
+    if (!anchorDate) return;
+    drag = {
+      offsetX,
+      anchorDate,
+      startClientX: e.clientX,
+      basePxPerDay: currentPxPerDay,
+    };
+    container.classList.add("fl-zoom-dragging"); // ew-resize + no text selection
+    e.preventDefault();
+    document.addEventListener("pointermove", onZoomPointerMove, true);
+    document.addEventListener("pointerup", endZoomDrag, true);
+    document.addEventListener("pointercancel", endZoomDrag, true);
+  };
+
+  container.addEventListener("pointerdown", onZoomPointerDown, true);
+
   const render = (model: ChartModel, zoom?: Zoom) => {
-    if (zoom) currentZoom = zoom;
-    applyScales(currentZoom);
+    // An explicit preset SWITCH (a new zoom value) resets pxPerDay to that
+    // preset's target. The common case — a re-render on an edit that arrives
+    // with the SAME preset the app already holds — leaves pxPerDay alone, so a
+    // custom drag-zoom survives edits.
+    if (zoom && zoom !== currentZoom) {
+      currentZoom = zoom;
+      currentPxPerDay = ZOOM_PX_PER_DAY[zoom];
+    }
+    applyScales();
     // Re-renders now happen live after every edit (the auto-reschedule magic),
     // so the scroll position must survive the clearAll/parse round-trip.
     const scroll = initialised ? gantt.getScrollState() : null;
@@ -495,7 +657,7 @@ export function createGanttView(
         if (r.endISO > modelRange.max) modelRange.max = r.endISO;
       }
     }
-    applyGhostRange();
+    applyRange();
     gantt.clearAll();
     const payload = {
       data: model.rows.map((r) => {
@@ -522,19 +684,23 @@ export function createGanttView(
   return {
     render,
     setZoom(zoom: Zoom) {
+      // An explicit preset click resets any custom drag-zoom to the preset.
       currentZoom = zoom;
-      applyScales(zoom);
+      currentPxPerDay = ZOOM_PX_PER_DAY[zoom];
+      applyScales();
       if (initialised) gantt.render();
     },
     setGhosts(ghosts: GhostBar[] | null) {
       ghostData = ghosts;
-      applyGhostRange();
+      applyRange();
       // A full repaint re-derives the scale for the (possibly wider) range and
       // fires onGanttRender, which redraws both markers and ghosts in place.
       if (initialised) gantt.render();
       else drawGhosts();
     },
     destroy() {
+      endZoomDrag(); // drop any in-flight drag + its document listeners
+      container.removeEventListener("pointerdown", onZoomPointerDown, true);
       markerEls.clear();
       clearGhostEls();
       if (initialised) gantt.destructor();
