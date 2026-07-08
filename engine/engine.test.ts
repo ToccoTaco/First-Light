@@ -390,6 +390,16 @@ describe("§6.3 engine acceptance suite", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Extra edge-case tests beyond §6.3 (guard the semantic decisions in the brief).
 describe("engine — extra edge cases", () => {
+  it("empty input is a valid empty schedule (no crash, no conflicts)", () => {
+    // A fresh or fully-cleared project has zero tasks. The engine must return a
+    // calm empty result anchored on today, never throw or blank ambiguously.
+    const r = computeSchedule([], CONFIG);
+    expect(r.tasks).toEqual({});
+    expect(r.criticalPath).toEqual([]);
+    expect(r.projectFinish).toBe(CONFIG.today); // finish anchors at today
+    expect(r.conflicts).toEqual([]);
+  });
+
   it("summary percent is duration-weighted over its leaves", () => {
     const tasks: Task[] = [
       { id: "P", name: "P", schedule: { mode: "auto", duration: 0 } },

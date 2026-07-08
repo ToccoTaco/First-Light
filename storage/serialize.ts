@@ -86,16 +86,29 @@ export function applyTaskEdit(
 }
 
 /**
- * Append a task to the file's `tasks:` list, creating that list if the file
- * doesn't have one yet. Existing lines are untouched — the new task is added at
- * the end as a fresh block mapping.
+ * The list key a task belongs to: a spine review goes under `reviews:`, a test
+ * gate under `gates:` (both live in project.yaml, §7), and everything else under
+ * a squad file's `tasks:`. Removal already searches all three; adds route the
+ * same way so a new gate lands beside its kin.
+ */
+function listKeyFor(task: Task): "tasks" | "reviews" | "gates" {
+  if (task.gate === "review") return "reviews";
+  if (task.gate === "test") return "gates";
+  return "tasks";
+}
+
+/**
+ * Append a task to its owning list (`tasks:`, `reviews:`, or `gates:` by the
+ * task's kind), creating that list if the file doesn't have one yet. Existing
+ * lines are untouched — the new item is added at the end as a fresh block mapping.
  */
 export function addTask(fileText: string, task: Task): string {
   const doc = parseDocument(fileText);
-  let seq = doc.get("tasks");
+  const key = listKeyFor(task);
+  let seq = doc.get(key);
   if (!isSeq(seq)) {
-    doc.set("tasks", doc.createNode([]));
-    seq = doc.get("tasks");
+    doc.set(key, doc.createNode([]));
+    seq = doc.get(key);
   }
   (seq as YAMLSeq).add(doc.createNode(task));
   return doc.toString(STRINGIFY);

@@ -681,6 +681,36 @@ body {
   white-space: nowrap;
 }
 
+/* + Add gate (§7): two quiet buttons grouped, same vocabulary as + Add task. */
+.fl-add-gate {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* Empty-board zero-state: the add affordances laid out in a calm wrapping row. */
+.fl-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Settings "Danger zone" — recessed, danger accent in --blocked-fg (never gold). */
+.fl-danger-zone .fl-modal-section-label {
+  color: var(--blocked-fg);
+}
+.fl-danger-btn {
+  margin-top: 4px;
+}
+.fl-danger-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.fl-danger-btn:disabled:hover {
+  background: transparent;
+}
+
 /* ── baseline ghost-bar toggle (Phase 4) — quiet, never gold ───────────────── */
 /* Same vocabulary as the other quiet controls; pressed = the inverted chip. */
 .fl-baseline-toggle {

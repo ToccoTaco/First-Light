@@ -51,14 +51,17 @@ import {
 import {
   accumulate,
   applyEditsToTasks,
+  clearChart,
   editDirtyCount,
   fileForTaskId,
   isEditable as isEditableRow,
+  makeSpineId,
   makeTaskId,
   movePatch,
+  newSpineItem,
   newSquadTask,
   nextStatus,
-  removeTaskFromState,
+  removeWithCleanup,
   resizePatch,
   saveAll,
   squadOfTaskId,
@@ -579,13 +582,50 @@ export default function App() {
     showToast(`Added a task to ${squadId} — refine it in the panel`);
   };
 
+  // "+ Add gate" (§7): stage a brand-new spine review/test gate into project.yaml.
+  const onAddGate = (gate: "review" | "test") => {
+    const existing = new Set(workingRef.current?.taskById.keys() ?? []);
+    const name = gate === "review" ? "New review" : "New test gate";
+    const id = makeSpineId(gate, name, existing);
+    setAdded((a) => [...a, newSpineItem(id, name, gate)]);
+    setSelectedId(id);
+    showToast(
+      `Added a ${gate === "review" ? "review" : "test"} gate — refine it in the panel`,
+    );
+  };
+
+  // Delete anything, with subtree cascade + dependency cleanup (all pure, staged).
   const onDeleteTask = (id: string) => {
-    const next = removeTaskFromState({ patches, added, removed }, id);
+    const tasks = [...(workingRef.current?.taskById.values() ?? [])];
+    const result = removeWithCleanup({ patches, added, removed }, id, tasks);
+    setPatches(result.state.patches);
+    setAdded(result.state.added);
+    setRemoved(result.state.removed);
+    setSelectedId(null);
+    const subs = result.removed.length - 1;
+    const parts = [
+      subs > 0 ? ` with ${subs} sub-item${subs === 1 ? "" : "s"}` : "",
+      result.dependents.length > 0
+        ? `; ${result.dependents.length} dependency link${result.dependents.length === 1 ? "" : "s"} cleared`
+        : "",
+    ];
+    showToast(`Deleted${parts[0]}${parts[1]} — unsaved`);
+  };
+
+  // "Clear the chart" (Settings danger zone): stage removal of EVERY item.
+  const onClearChart = () => {
+    const tasks = [...(workingRef.current?.taskById.values() ?? [])];
+    const next = clearChart({ patches, added, removed }, tasks);
     setPatches(next.patches);
     setAdded(next.added);
     setRemoved(next.removed);
     setSelectedId(null);
-    showToast("Task deleted — unsaved");
+    setSettingsOpen(false);
+    const staged = editDirtyCount(next);
+    showToast(
+      `Chart cleared — ${staged} change${staged === 1 ? "" : "s"} staged. Save to commit; history stays in git.`,
+      "warn",
+    );
   };
 
   const onSave = async () => {
@@ -765,6 +805,7 @@ export default function App() {
             onView={onView}
             squads={project.squads}
             onAddTask={onAddTask}
+            onAddGate={onAddGate}
             dirty={dirty}
             saving={saving}
             hasToken={hasToken}
@@ -782,11 +823,7 @@ export default function App() {
           />
           <Banner issues={project.issues} conflicts={schedule.conflicts} />
           <div className={`fl-main${panelOpen ? " fl-main-panel" : ""}`}>
-            {hasChart ? (
-              <div className="fl-chart">
-                <div className="fl-chart-inner" ref={containerRef} />
-              </div>
-            ) : (
+            {!working!.model.hasSchedule ? (
               <div className="fl-state">
                 <div className="fl-card">
                   <h2>The schedule can't be drawn yet</h2>
@@ -794,6 +831,28 @@ export default function App() {
                     A conflict in the plan is blocking the whole schedule. See
                     the banner above for the exact fix — once it's resolved the
                     chart comes back automatically.
+                  </p>
+                </div>
+              </div>
+            ) : working!.model.rows.length === 0 ? (
+              // Empty board is a VALID state (§ full modularity): a calm zero-
+              // state with the add affordances, never a broken grid.
+              <ChartEmptyState
+                squads={project.squads}
+                onAddGate={onAddGate}
+                onAddTask={onAddTask}
+              />
+            ) : hasChart ? (
+              <div className="fl-chart">
+                <div className="fl-chart-inner" ref={containerRef} />
+              </div>
+            ) : (
+              <div className="fl-state">
+                <div className="fl-card">
+                  <h2>Nothing in this view</h2>
+                  <p>
+                    This filter has no rows right now. Switch to{" "}
+                    <b>Everything</b> above, or add something to this squad.
                   </p>
                 </div>
               </div>
@@ -809,6 +868,7 @@ export default function App() {
                 conflicts={working.schedule.conflicts}
                 onPatch={onPanelPatch}
                 onAdd={onAddTask}
+                onAddSpine={onAddGate}
                 onDelete={onDeleteTask}
                 onClose={() => setSelectedId(null)}
               />
@@ -828,6 +888,7 @@ export default function App() {
         <SettingsModal
           initial={ghSettings}
           onClose={() => setSettingsOpen(false)}
+          onClearChart={onClearChart}
           onSave={(s) => {
             setSettings(window.localStorage, s);
             setGhSettings(s);
@@ -926,6 +987,7 @@ function Toolbar({
   onView,
   squads,
   onAddTask,
+  onAddGate,
   dirty,
   saving,
   hasToken,
@@ -941,6 +1003,7 @@ function Toolbar({
   onView: (v: ChartView) => void;
   squads: Squad[];
   onAddTask: (squadId: string) => void;
+  onAddGate: (gate: "review" | "test") => void;
   dirty: number;
   saving: boolean;
   hasToken: boolean;
@@ -1000,6 +1063,26 @@ function Toolbar({
           + Add task
         </button>
       )}
+      {/* + Add gate (§7): a new spine review or test gate, into project.yaml.
+          Quiet — no gold; the Save button owns this screen's one gold. */}
+      <div className="fl-add-gate" role="group" aria-label="Add gate">
+        <button
+          type="button"
+          className="fl-discard fl-add-task"
+          onClick={() => onAddGate("review")}
+          title="Add a review gate to the mission spine"
+        >
+          + Review
+        </button>
+        <button
+          type="button"
+          className="fl-discard fl-add-task"
+          onClick={() => onAddGate("test")}
+          title="Add a test gate to the mission spine"
+        >
+          + Test gate
+        </button>
+      </div>
       {/* Baseline ghost bars (Phase 4, deliverable 8): a quiet toggle, present
           only when a baseline schedule exists. Ghosts are hairline outlines at
           each task's baseline dates — the dashboard carries the headline. */}
@@ -1076,6 +1159,56 @@ function Toolbar({
         >
           {saving ? "Saving…" : "Save"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The empty-board zero-state (§ full modularity): shown when the whole chart has
+ * no rows — a fresh project, or one cleared to start over. Calm and centered,
+ * with the add affordances right here so the board is never a dead end.
+ */
+function ChartEmptyState({
+  squads,
+  onAddGate,
+  onAddTask,
+}: {
+  squads: Squad[];
+  onAddGate: (gate: "review" | "test") => void;
+  onAddTask: (squadId: string) => void;
+}) {
+  return (
+    <div className="fl-state">
+      <div className="fl-card">
+        <h2>Nothing on the board</h2>
+        <p>Add a task or a gate to begin building the mission timeline.</p>
+        <div className="fl-empty-actions">
+          <button
+            type="button"
+            className="fl-discard fl-add-task"
+            onClick={() => onAddGate("review")}
+          >
+            + Review gate
+          </button>
+          <button
+            type="button"
+            className="fl-discard fl-add-task"
+            onClick={() => onAddGate("test")}
+          >
+            + Test gate
+          </button>
+          {squads.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="fl-discard fl-add-task"
+              onClick={() => onAddTask(s.id)}
+            >
+              + Task · {s.name}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1175,16 +1308,19 @@ function SaveErrors({
 function SettingsModal({
   initial,
   onClose,
+  onClearChart,
   onSave,
 }: {
   initial: GitHubSettings | null;
   onClose: () => void;
+  onClearChart: () => void;
   onSave: (s: GitHubSettings) => void;
 }) {
   const [owner, setOwner] = useState(initial?.owner ?? "");
   const [repo, setRepo] = useState(initial?.repo ?? "");
   const [branch, setBranch] = useState(initial?.branch ?? "main");
   const [token, setToken] = useState(initial?.token ?? "");
+  const [clearText, setClearText] = useState("");
 
   return (
     <div
@@ -1256,6 +1392,36 @@ function SettingsModal({
               GitHub.
             </span>
           </div>
+        </div>
+        {/* Danger zone — "start fresh". Stages removal of the whole chart; the
+            user still explicitly Saves (commits, one file at a time). Recoverable
+            from git. Styled quiet with --blocked-fg tones, never gold. */}
+        <div className="fl-modal-section fl-danger-zone">
+          <div className="fl-modal-section-label">Danger zone</div>
+          <p className="fl-modal-note">
+            Clear the chart stages removal of every task, review, and gate — a
+            clean slate to build a new project. You still Save to commit, and
+            history stays in git, so it's recoverable.
+          </p>
+          <label className="fl-field">
+            <span>
+              Type <b>CLEAR</b>
+            </span>
+            <input
+              value={clearText}
+              onChange={(e) => setClearText(e.target.value)}
+              placeholder="CLEAR"
+              autoComplete="off"
+            />
+          </label>
+          <button
+            type="button"
+            className="fl-panel-danger-ghost fl-danger-btn"
+            disabled={clearText !== "CLEAR"}
+            onClick={onClearChart}
+          >
+            Clear the chart
+          </button>
         </div>
         <div className="fl-modal-actions">
           <button type="button" className="fl-discard" onClick={onClose}>

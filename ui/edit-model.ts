@@ -109,11 +109,15 @@ export interface EditableRowInfo {
 }
 
 /**
- * Quick-editable iff the row is an ordinary leaf task or a leaf milestone that
- * belongs to a squad. Spine gates/reviews, summaries, and group headers are NOT
- * editable in 3.2 (the full editor + project-file serializer arrive in 3.3).
+ * Quick-editable (drag-to-pin / status-cycle) iff the row is:
+ *   · a spine review/gate — dragging a gate pins it to a date, exactly the
+ *     "change dates" affordance the full editor also offers; or
+ *   · an ordinary leaf task / leaf milestone that belongs to a squad.
+ * Summaries and group headers stay quick-locked (they roll up from their
+ * children); everything editable also opens the full side panel on click.
  */
 export function isEditable(row: EditableRowInfo): boolean {
+  if (row.kind === "gate-review" || row.kind === "gate-test") return true;
   return (
     (row.kind === "task" || row.kind === "milestone") && row.squadId !== null
   );
@@ -446,6 +450,122 @@ export function blockingDependents(
   return tasks.filter((t) => dependsOnIds(t.dependsOn).includes(id));
 }
 
+// ── deletion with cascade + dependency cleanup (full modularity) ─────────────────
+//
+// Nothing on the chart is permanent: any task, milestone, review, or gate can be
+// deleted, and deleting a summary takes its whole subtree with it. Both are pure
+// graph operations here so the confirm dialog can preview them and the staging is
+// unit-tested. Parent/child is modelled by the `parent` field (§5.3) — a task is a
+// summary iff another task names it as its parent.
+
+/** Direct + transitive children of `id` (its subtree), EXCLUDING `id` itself. */
+export function descendantIds(id: string, tasks: readonly Task[]): string[] {
+  const childrenOf = new Map<string, string[]>();
+  for (const t of tasks) {
+    if (t.parent) {
+      const arr = childrenOf.get(t.parent) ?? [];
+      arr.push(t.id);
+      childrenOf.set(t.parent, arr);
+    }
+  }
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const stack = [...(childrenOf.get(id) ?? [])];
+  while (stack.length) {
+    const cur = stack.pop()!;
+    if (seen.has(cur)) continue; // guard against malformed parent cycles
+    seen.add(cur);
+    out.push(cur);
+    for (const c of childrenOf.get(cur) ?? []) stack.push(c);
+  }
+  return out;
+}
+
+/** The full set removed when `id` is deleted: `id` plus its entire subtree. */
+export function removalClosure(id: string, tasks: readonly Task[]): string[] {
+  return [id, ...descendantIds(id, tasks)];
+}
+
+/** dependsOn with every edge into `remove` stripped (other edges preserved). */
+function stripDeps(
+  deps: Task["dependsOn"],
+  remove: Set<string>,
+): Dependency[] {
+  return (deps ?? []).filter((d) => !remove.has(depId(d)));
+}
+
+/**
+ * What a delete of `id` would take with it, for the confirm dialog: the subtree
+ * `descendants` that go too, and the OUTSIDE `dependents` whose reference to
+ * something in the removed set will be stripped. Pure — no staging.
+ */
+export function removalPreview(
+  id: string,
+  workingTasks: readonly Task[],
+): { descendants: string[]; dependents: string[] } {
+  const removedSet = new Set(removalClosure(id, workingTasks));
+  const dependents: string[] = [];
+  for (const t of workingTasks) {
+    if (removedSet.has(t.id)) continue;
+    if (dependsOnIds(t.dependsOn).some((d) => removedSet.has(d)))
+      dependents.push(t.id);
+  }
+  return { descendants: descendantIds(id, workingTasks), dependents };
+}
+
+/** The outcome of a cascade delete: the new state + what it touched. */
+export interface RemovalResult {
+  state: EditState;
+  removed: string[]; // every id staged for removal (the subtree closure)
+  dependents: string[]; // OUTSIDE ids whose dependency on a removed id was stripped
+}
+
+/**
+ * Stage the deletion of `id` AND its whole subtree, cleaning up every dangling
+ * dependency: any OTHER task that depended on something removed gets a patch that
+ * strips exactly those edges (`[]` clears the key entirely). Removing an unsaved
+ * add just un-adds it (via `removeTaskFromState`). Pure: no file is touched until
+ * save. Returns the affected dependent ids so the UI can name them.
+ */
+export function removeWithCleanup(
+  state: EditState,
+  id: string,
+  workingTasks: readonly Task[],
+): RemovalResult {
+  const closure = removalClosure(id, workingTasks);
+  const removedSet = new Set(closure);
+  let next = state;
+  for (const rid of closure) next = removeTaskFromState(next, rid);
+
+  const dependents: string[] = [];
+  for (const t of workingTasks) {
+    if (removedSet.has(t.id)) continue;
+    if (!dependsOnIds(t.dependsOn).some((d) => removedSet.has(d))) continue;
+    const stripped = stripDeps(t.dependsOn, removedSet);
+    next = {
+      ...next,
+      patches: accumulate(next.patches, t.id, { dependsOn: stripped }),
+    };
+    dependents.push(t.id);
+  }
+  return { state: next, removed: closure, dependents };
+}
+
+/**
+ * "Start fresh" — stage removal of EVERY current task/review/gate so the board
+ * goes empty. Cleanup is trivially satisfied (nothing remains to dangle). Unsaved
+ * adds are simply un-added; existing items join `removed` and save one file at a
+ * time. History stays in git, so this is recoverable.
+ */
+export function clearChart(
+  state: EditState,
+  workingTasks: readonly Task[],
+): EditState {
+  let next = state;
+  for (const t of workingTasks) next = removeTaskFromState(next, t.id);
+  return next;
+}
+
 // ── new-task id generation (rolling-wave "+ Add task", §10) ──────────────────────
 
 /** A url/id-safe kebab slug of a display name. Empty input → "task". */
@@ -457,6 +577,15 @@ export function kebab(name: string): string {
   return slug || "task";
 }
 
+/** Make `base` unique against `existingIds` by bumping a `-2`, `-3`, … suffix. */
+function uniqueId(base: string, existingIds: Iterable<string>): string {
+  const used = new Set(existingIds);
+  if (!used.has(base)) return base;
+  let n = 2;
+  while (used.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
+
 /**
  * A fresh, unique namespaced id `squad.slug-of-name`, bumping a numeric suffix
  * (`-2`, `-3`, …) until it clears every existing id. Pure so it's unit-tested.
@@ -466,12 +595,7 @@ export function makeTaskId(
   name: string,
   existingIds: Iterable<string>,
 ): string {
-  const used = new Set(existingIds);
-  const base = `${squadId}.${kebab(name)}`;
-  if (!used.has(base)) return base;
-  let n = 2;
-  while (used.has(`${base}-${n}`)) n++;
-  return `${base}-${n}`;
+  return uniqueId(`${squadId}.${kebab(name)}`, existingIds);
 }
 
 /** A brand-new squad task: auto, 7-day default, not-started, guess, no deps (§10). */
@@ -482,6 +606,45 @@ export function newSquadTask(id: string, name: string): Task {
     schedule: { mode: "auto", duration: 7 },
     status: "not-started",
     confidence: "guess",
+  };
+}
+
+/** The id namespace a spine kind lives under: reviews are `review.*`, tests `gate.*`. */
+const SPINE_PREFIX: Record<"review" | "test", string> = {
+  review: "review",
+  test: "gate",
+};
+
+/**
+ * A fresh, unique spine id: `review.<slug>` for a review, `gate.<slug>` for a test
+ * gate — matching the file's `reviews:` / `gates:` keys. Same kebab + numeric-
+ * suffix uniqueness as `makeTaskId`, so a new gate never collides with the spine.
+ */
+export function makeSpineId(
+  gate: "review" | "test",
+  name: string,
+  existingIds: Iterable<string>,
+): string {
+  return uniqueId(`${SPINE_PREFIX[gate]}.${kebab(name)}`, existingIds);
+}
+
+/**
+ * A brand-new spine item: a zero-duration milestone (a diamond) that fans in on
+ * dependencies. Auto-scheduled, not-started, no deps — the team pins a real date
+ * and wires feeders in the panel. `gate` carries the review/test kind (§7).
+ */
+export function newSpineItem(
+  id: string,
+  name: string,
+  gate: "review" | "test",
+): Task {
+  return {
+    id,
+    name,
+    milestone: true,
+    gate,
+    schedule: { mode: "auto", duration: 0 },
+    status: "not-started",
   };
 }
 

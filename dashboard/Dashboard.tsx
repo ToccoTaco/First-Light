@@ -67,6 +67,14 @@ function Hero({ countdown }: { countdown: CountdownModel }) {
             </div>
           </>
         )}
+        {countdown.kind === "no-gates" && (
+          <>
+            <div className="fl-countdown-calm">No gate on the board</div>
+            <div className="fl-countdown-target">
+              Add a review or test gate to set a target.
+            </div>
+          </>
+        )}
         {countdown.kind === "all-passed" && (
           <>
             <div className="fl-countdown-calm">All gates passed</div>
@@ -221,13 +229,21 @@ function Slippage({ slippage }: { slippage: SlippageModel }) {
 
 // ── critical health (deliverable 4) ───────────────────────────────────────────
 
-function Critical({ critical }: { critical: CriticalModel | null }) {
+function Critical({
+  critical,
+  noSchedule,
+}: {
+  critical: CriticalModel | null;
+  noSchedule: boolean;
+}) {
   return (
     <section className="fl-tile fl-tile-critical">
       <TileLabel>Critical path</TileLabel>
       {!critical ? (
         <p className="fl-tile-empty">
-          No critical path — the schedule is blocked by a conflict.
+          {noSchedule
+            ? "No critical path — the schedule is blocked by a conflict."
+            : "No critical path yet — add tasks to see the thread."}
         </p>
       ) : (
         <>
@@ -356,7 +372,10 @@ export function Dashboard({
       <div className="fl-dash-grid">
         <Rollups rollups={model.rollups} />
         <Slippage slippage={model.slippage} />
-        <Critical critical={model.critical} />
+        <Critical
+          critical={model.critical}
+          noSchedule={model.countdown.kind === "no-schedule"}
+        />
         <Blocked blocked={model.blocked} />
         <Staleness staleness={model.staleness} />
       </div>

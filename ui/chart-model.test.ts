@@ -354,6 +354,22 @@ describe("empty schedule", () => {
   });
 });
 
+// ── empty board (zero tasks — a fresh / cleared project is a VALID state) ─────────
+
+describe("empty board", () => {
+  it("zero tasks → empty rows, no links, hasSchedule true, no next gate", () => {
+    const p = project([]);
+    const schedule = computeSchedule(p.tasks, p.config);
+    const model = buildChartModel(p, schedule);
+    expect(model.rows).toEqual([]);
+    expect(model.links).toEqual([]);
+    expect(model.hasSchedule).toBe(true); // NOT a conflict — just empty
+    expect(model.nextGateId).toBeNull();
+    expect(model.markers.todayISO).toBe(NOW);
+    expect(model.markers.projectFinishISO).toBe(NOW); // engine anchors finish at today
+  });
+});
+
 // ── squad filtering (§9): filterChartModel ─────────────────────────────────────
 
 describe("filterChartModel", () => {

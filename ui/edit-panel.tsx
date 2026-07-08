@@ -17,7 +17,6 @@ import type { Conflict, ScheduleResult, Status, Task } from "../engine/types";
 import type { Squad } from "../storage/types";
 import type { ChartRow } from "./chart-model";
 import {
-  blockingDependents,
   depId,
   dependsOnIds,
   eligibleDependencyTargets,
@@ -25,6 +24,7 @@ import {
   milestonePatch,
   movePatch,
   releasePatch,
+  removalPreview,
   resizePatch,
   squadOfTaskId,
   type Dependency,
@@ -92,6 +92,7 @@ export interface EditPanelProps {
   conflicts: Conflict[];
   onPatch: (id: string, patch: TaskPatch) => void;
   onAdd: (squadId: string) => void;
+  onAddSpine: (gate: "review" | "test") => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 }
@@ -145,8 +146,17 @@ export function EditPanel(props: EditPanelProps) {
         </button>
       </div>
 
-      {isGroup || isSummary ? (
-        <RolledUpInfo row={row} isSummary={isSummary} />
+      {isGroup ? (
+        <RolledUpInfo row={row} isSummary={false} />
+      ) : isSummary ? (
+        // A summary rolls up from its children and can't be edited field-by-field,
+        // but it IS deletable — and deleting it cascades to its whole subtree.
+        <div className="fl-panel-body">
+          <RolledUpInfo row={row} isSummary={true} inline />
+          {task && squadId !== null && (
+            <DeleteControl {...props} task={task} noun="summary" />
+          )}
+        </div>
       ) : task ? (
         // The editor renders even when there's no computed telemetry (a cycle
         // blanks the schedule) — so the chip that CAUSED the loop stays removable
@@ -173,12 +183,14 @@ export function EditPanel(props: EditPanelProps) {
 function RolledUpInfo({
   row,
   isSummary,
+  inline,
 }: {
   row: ChartRow;
   isSummary: boolean;
+  inline?: boolean; // rendered inside an existing fl-panel-body (no own wrapper)
 }) {
-  return (
-    <div className="fl-panel-body">
+  const body = (
+    <>
       <p className="fl-panel-note">
         {isSummary
           ? "This is a summary — its dates, status and progress roll up from the tasks beneath it. Edit those tasks to change it."
@@ -195,8 +207,9 @@ function RolledUpInfo({
           {shortDate(row.startISO)} → {shortDate(exclusiveToLast(row.endISO))}
         </span>
       </Field>
-    </div>
+    </>
   );
+  return inline ? body : <div className="fl-panel-body">{body}</div>;
 }
 
 // ── the spine editor (reviews / gates) ──────────────────────────────────────────
@@ -227,6 +240,27 @@ function SpineEditor(props: EditPanelProps & { task: Task }) {
       <Section label="Risk">
         <DeadlineField task={task} onPatch={props.onPatch} />
       </Section>
+      <div className="fl-panel-add">
+        <button
+          type="button"
+          className="fl-panel-add-btn"
+          onClick={() => props.onAddSpine("review")}
+        >
+          + Add review gate
+        </button>
+        <button
+          type="button"
+          className="fl-panel-add-btn"
+          onClick={() => props.onAddSpine("test")}
+        >
+          + Add test gate
+        </button>
+      </div>
+      <DeleteControl
+        {...props}
+        task={task}
+        noun={props.row.kind === "gate-review" ? "review gate" : "test gate"}
+      />
     </div>
   );
 }
@@ -269,7 +303,11 @@ function SquadEditor(props: EditPanelProps & { task: Task; squadId: string }) {
           + Add task to {squadName(props.squads, props.squadId)}
         </button>
       </div>
-      <DeleteControl {...props} task={task} />
+      <DeleteControl
+        {...props}
+        task={task}
+        noun={task.milestone === true ? "milestone" : "task"}
+      />
     </div>
   );
 }
@@ -696,57 +734,77 @@ function DepChip({
   );
 }
 
-// ── delete (squad tasks only) ────────────────────────────────────────────────────
+// ── delete (any element — with subtree cascade + dependency cleanup) ──────────────
+//
+// Everything on the chart is deletable. When deleting takes more than the one
+// clicked row — a summary's subtree goes too, or other tasks depended on it — we
+// confirm first and say exactly what travels with it. A clean leaf with nothing
+// pointing at it deletes immediately (staged, and recoverable via reload / git).
 
-function DeleteControl(props: EditPanelProps & { task: Task }) {
-  const { task, allTasks } = props;
+function DeleteControl(props: EditPanelProps & { task: Task; noun: string }) {
+  const { task, allTasks, noun } = props;
   const [confirming, setConfirming] = useState(false);
-  const blockers = blockingDependents(task.id, allTasks);
+  const { descendants, dependents } = useMemo(
+    () => removalPreview(task.id, allTasks),
+    [task.id, allTasks],
+  );
+  const nameById = useMemo(
+    () => new Map(allTasks.map((t) => [t.id, t.name])),
+    [allTasks],
+  );
+  const nameOf = (id: string) => nameById.get(id) ?? id;
+  const needsConfirm = descendants.length > 0 || dependents.length > 0;
 
-  if (blockers.length > 0) {
-    const first = blockers[0].name;
-    const rest = blockers.length - 1;
-    return (
-      <div className="fl-panel-delete">
-        <div className="fl-panel-note fl-panel-note-tight">
-          Can't delete: {first}
-          {rest > 0 ? ` and ${rest} other${rest === 1 ? "" : "s"}` : ""}{" "}
-          {rest > 0 ? "depend" : "depends"} on this task. Remove those
-          dependencies first.
-        </div>
-      </div>
-    );
-  }
+  const doDelete = () => props.onDelete(task.id);
 
   return (
     <div className="fl-panel-delete">
       {confirming ? (
-        <div className="fl-panel-inline">
-          <span className="fl-panel-note fl-panel-note-tight">
-            Delete this task?
-          </span>
-          <button
-            type="button"
-            className="fl-panel-danger"
-            onClick={() => props.onDelete(task.id)}
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            className="fl-panel-clear"
-            onClick={() => setConfirming(false)}
-          >
-            Cancel
-          </button>
+        <div className="fl-panel-stack">
+          <div className="fl-panel-note fl-panel-note-tight">
+            Delete this {noun}?
+          </div>
+          {descendants.length > 0 && (
+            <div className="fl-panel-note fl-panel-note-tight">
+              Its {descendants.length} sub-item
+              {descendants.length === 1 ? "" : "s"} beneath it will be deleted
+              too.
+            </div>
+          )}
+          {dependents.length > 0 && (
+            <div className="fl-panel-note fl-panel-note-tight">
+              {dependents.length} task{dependents.length === 1 ? "" : "s"} depend
+              on it; that dependency will be removed:{" "}
+              {dependents.map(nameOf).join(", ")}.
+            </div>
+          )}
+          <div className="fl-panel-inline">
+            <button
+              type="button"
+              className="fl-panel-danger"
+              onClick={doDelete}
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              className="fl-panel-clear"
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="fl-panel-note fl-panel-note-tight">
+            History stays in git — a delete is recoverable.
+          </div>
         </div>
       ) : (
         <button
           type="button"
           className="fl-panel-danger-ghost"
-          onClick={() => setConfirming(true)}
+          onClick={() => (needsConfirm ? setConfirming(true) : doDelete())}
         >
-          Delete task
+          Delete {noun}
         </button>
       )}
     </div>

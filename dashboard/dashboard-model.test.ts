@@ -108,10 +108,15 @@ describe("computeCountdown", () => {
     expect(c.kind).toBe("all-passed");
   });
 
-  it("no gates at all → all-passed", () => {
+  it("tasks but no gates → no-gates (distinct from all-passed)", () => {
     const tasks = [auto("engines.a", 5)];
     const c = computeCountdown(project(tasks), scheduleOf(tasks), NOW);
-    expect(c.kind).toBe("all-passed");
+    expect(c.kind).toBe("no-gates");
+  });
+
+  it("a fully empty project → no-gates", () => {
+    const c = computeCountdown(project([]), scheduleOf([]), NOW);
+    expect(c.kind).toBe("no-gates");
   });
 
   it("cycle blanks the schedule → no-schedule (hero yields)", () => {
@@ -395,6 +400,23 @@ describe("buildDashboard", () => {
     expect(model.rollups.overall.percent).toBeCloseTo(40);
     expect(model.slippage.kind).toBe("no-baseline");
     expect(model.critical).not.toBeNull();
+    expect(model.blocked).toEqual([]);
+    expect(model.staleness.kind).toBe("absent");
+  });
+
+  it("degrades gracefully on a fully empty project — no NaN, sensible empties", () => {
+    const p = project([]);
+    const sched = scheduleOf([]);
+    const model = buildDashboard(p, sched, null, NOW);
+    expect(model.countdown.kind).toBe("no-gates"); // quiet hero, no gold number
+    expect(model.rollups.overall.percent).toBe(0); // 0, never NaN
+    expect(Number.isNaN(model.rollups.overall.percent)).toBe(false);
+    for (const s of model.rollups.squads) {
+      expect(Number.isNaN(s.percent)).toBe(false);
+      expect(s.percent).toBe(0);
+    }
+    expect(model.slippage.kind).toBe("no-baseline");
+    expect(model.critical).toBeNull(); // no thread — Dashboard shows the calm copy
     expect(model.blocked).toEqual([]);
     expect(model.staleness.kind).toBe("absent");
   });

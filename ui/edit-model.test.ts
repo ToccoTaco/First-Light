@@ -9,10 +9,12 @@ import {
   applyPatchToTask,
   applyPatchesToTasks,
   blockingDependents,
+  clearChart,
   commitMessage,
   commitMessageFor,
   depId,
   dependsOnIds,
+  descendantIds,
   dirtyCount,
   dirtyFiles,
   editDirtyCount,
@@ -22,13 +24,18 @@ import {
   fileForTaskId,
   isEditable,
   kebab,
+  makeSpineId,
   makeTaskId,
   milestonePatch,
   movePatch,
+  newSpineItem,
   newSquadTask,
   nextStatus,
   releasePatch,
+  removalClosure,
+  removalPreview,
   removeTaskFromState,
+  removeWithCleanup,
   resizePatch,
   saveAll,
   squadFile,
@@ -92,9 +99,12 @@ describe("isEditable", () => {
     expect(isEditable({ kind: "milestone", squadId: "fluids" })).toBe(true);
   });
 
-  it("refuses spine gates, summaries, groups, and squadless rows", () => {
-    expect(isEditable({ kind: "gate-review", squadId: null })).toBe(false);
-    expect(isEditable({ kind: "gate-test", squadId: null })).toBe(false);
+  it("allows spine reviews/gates (now first-class editable)", () => {
+    expect(isEditable({ kind: "gate-review", squadId: null })).toBe(true);
+    expect(isEditable({ kind: "gate-test", squadId: null })).toBe(true);
+  });
+
+  it("refuses summaries, groups, and squadless leaf tasks", () => {
     expect(isEditable({ kind: "summary", squadId: "engines" })).toBe(false);
     expect(isEditable({ kind: "group", squadId: "engines" })).toBe(false);
     expect(isEditable({ kind: "task", squadId: null })).toBe(false);
@@ -786,6 +796,159 @@ describe("blockingDependents", () => {
       "engines.c",
     ]);
     expect(blockingDependents("engines.d", tasks)).toEqual([]);
+  });
+});
+
+// ── deletion cascade + dependency cleanup (full modularity) ───────────────────────
+
+describe("descendantIds / removalClosure", () => {
+  // P ⊃ { X, Y ⊃ { Z } } — a two-level subtree under a summary P.
+  const tree: Task[] = [
+    auto("engines.p", 0),
+    auto("engines.x", 3, { parent: "engines.p" }),
+    auto("engines.y", 3, { parent: "engines.p" }),
+    auto("engines.z", 3, { parent: "engines.y" }),
+    auto("engines.loose", 3),
+  ];
+
+  it("descendantIds returns the whole subtree, excluding the root", () => {
+    expect(new Set(descendantIds("engines.p", tree))).toEqual(
+      new Set(["engines.x", "engines.y", "engines.z"]),
+    );
+    expect(descendantIds("engines.y", tree)).toEqual(["engines.z"]);
+    expect(descendantIds("engines.loose", tree)).toEqual([]);
+  });
+
+  it("removalClosure includes the root itself first", () => {
+    expect(removalClosure("engines.y", tree)).toEqual([
+      "engines.y",
+      "engines.z",
+    ]);
+  });
+});
+
+describe("removalPreview", () => {
+  const graph: Task[] = [
+    auto("engines.p", 0),
+    auto("engines.child", 3, { parent: "engines.p" }),
+    auto("fluids.after", 3, { dependsOn: ["engines.child"] }), // depends INTO the subtree
+    auto("structures.clear", 3),
+  ];
+
+  it("previews the subtree and the outside dependents that would be cleaned up", () => {
+    const preview = removalPreview("engines.p", graph);
+    expect(preview.descendants).toEqual(["engines.child"]);
+    expect(preview.dependents).toEqual(["fluids.after"]); // its dep is inside the subtree
+  });
+
+  it("a clean leaf with no dependents previews empty", () => {
+    expect(removalPreview("structures.clear", graph)).toEqual({
+      descendants: [],
+      dependents: [],
+    });
+  });
+});
+
+describe("removeWithCleanup", () => {
+  const graph: Task[] = [
+    auto("engines.a", 5),
+    auto("engines.b", 3, { dependsOn: ["engines.a", "engines.other"] }),
+    auto("fluids.c", 3, { dependsOn: [{ task: "engines.a", type: "SS" }] }),
+    auto("engines.other", 2),
+  ];
+
+  it("stages the delete AND strips every dangling dependency edge", () => {
+    const { state, removed, dependents } = removeWithCleanup(
+      { patches: {}, added: [], removed: [] },
+      "engines.a",
+      graph,
+    );
+    expect(removed).toEqual(["engines.a"]);
+    expect(state.removed).toEqual(["engines.a"]);
+    // engines.b keeps its OTHER dep; fluids.c loses its only dep (→ []).
+    expect(new Set(dependents)).toEqual(new Set(["engines.b", "fluids.c"]));
+    expect(state.patches["engines.b"].dependsOn).toEqual(["engines.other"]);
+    expect(state.patches["fluids.c"].dependsOn).toEqual([]);
+  });
+
+  it("cascades a summary delete to its subtree and cleans deps into it", () => {
+    const tree: Task[] = [
+      auto("engines.p", 0),
+      auto("engines.x", 3, { parent: "engines.p" }),
+      auto("engines.y", 3, { parent: "engines.p" }),
+      auto("fluids.after", 3, { dependsOn: ["engines.y"] }),
+    ];
+    const { state, removed, dependents } = removeWithCleanup(
+      { patches: {}, added: [], removed: [] },
+      "engines.p",
+      tree,
+    );
+    expect(new Set(removed)).toEqual(
+      new Set(["engines.p", "engines.x", "engines.y"]),
+    );
+    expect(new Set(state.removed)).toEqual(
+      new Set(["engines.p", "engines.x", "engines.y"]),
+    );
+    expect(dependents).toEqual(["fluids.after"]);
+    expect(state.patches["fluids.after"].dependsOn).toEqual([]);
+  });
+
+  it("deleting an unsaved add just un-adds it (never reaches a file)", () => {
+    let state: EditState = { patches: {}, added: [], removed: [] };
+    state = { ...state, added: [newSquadTask("engines.new", "New")] };
+    const { state: after } = removeWithCleanup(state, "engines.new", [
+      newSquadTask("engines.new", "New"),
+    ]);
+    expect(after.added).toEqual([]);
+    expect(after.removed).toEqual([]);
+  });
+});
+
+describe("clearChart", () => {
+  it("stages every existing item removed and un-adds unsaved adds", () => {
+    const working: Task[] = [
+      auto("engines.a", 5),
+      { id: "review.pdr", name: "PDR", milestone: true, gate: "review", schedule: { mode: "auto", duration: 0 } },
+      newSquadTask("fluids.fresh", "Fresh"), // an unsaved add present in the working graph
+    ];
+    const state: EditState = {
+      patches: { "engines.a": { status: "done" } },
+      added: [newSquadTask("fluids.fresh", "Fresh")],
+      removed: [],
+    };
+    const next = clearChart(state, working);
+    // The two existing items are staged removed; the add is dropped, not removed.
+    expect(new Set(next.removed)).toEqual(new Set(["engines.a", "review.pdr"]));
+    expect(next.added).toEqual([]);
+    expect(next.patches).toEqual({}); // the removed task's patch is dropped
+  });
+});
+
+// ── spine id + item creation ──────────────────────────────────────────────────────
+
+describe("makeSpineId / newSpineItem", () => {
+  it("mints review.* and gate.* ids, bumping suffixes on collision", () => {
+    expect(makeSpineId("review", "Preliminary Design Review", [])).toBe(
+      "review.preliminary-design-review",
+    );
+    expect(makeSpineId("test", "First engine hotfire", [])).toBe(
+      "gate.first-engine-hotfire",
+    );
+    expect(makeSpineId("test", "Hotfire", ["gate.hotfire"])).toBe(
+      "gate.hotfire-2",
+    );
+  });
+
+  it("newSpineItem is a zero-duration auto milestone carrying its gate kind", () => {
+    expect(newSpineItem("review.new", "New review", "review")).toEqual({
+      id: "review.new",
+      name: "New review",
+      milestone: true,
+      gate: "review",
+      schedule: { mode: "auto", duration: 0 },
+      status: "not-started",
+    });
+    expect(newSpineItem("gate.new", "New test", "test").gate).toBe("test");
   });
 });
 

@@ -248,3 +248,62 @@ describe("removeTask on spine lists", () => {
     expect(spineTasks).toHaveLength(2); // both reviews remain, the gate is gone
   });
 });
+
+describe("addTask on spine lists (reviews:/gates: routing)", () => {
+  it("routes a new review into reviews:, leaving gates: and every other line intact", () => {
+    const review: Task = {
+      id: "review.mrr",
+      name: "Manufacturing Readiness Review (MRR)",
+      milestone: true,
+      gate: "review",
+      schedule: { mode: "auto", duration: 0 },
+      status: "not-started",
+    };
+    const out = addTask(SPINE_FIXTURE, review);
+    // Original bytes preserved; the new review appended under reviews:, before gates:.
+    expect(out).toContain("# Preliminary Design Review");
+    expect(out).toContain('name: "Critical Design Review (CDR)"');
+    expect(out.indexOf("id: review.mrr")).toBeGreaterThan(
+      out.indexOf("id: review.cdr"),
+    );
+    expect(out.indexOf("id: review.mrr")).toBeLessThan(out.indexOf("gates:"));
+    const { spineTasks, issues } = parseProjectFile("data/project.yaml", out);
+    expect(issues).toEqual([]);
+    const mrr = spineTasks
+      .map((raw) => validateTask(raw, "data/project.yaml").task)
+      .find((t) => t?.id === "review.mrr");
+    expect(mrr?.gate).toBe("review");
+    expect(mrr?.milestone).toBe(true);
+  });
+
+  it("routes a new test gate into gates:", () => {
+    const gate: Task = {
+      id: "gate.first-flight",
+      name: "First flight",
+      milestone: true,
+      gate: "test",
+      schedule: { mode: "auto", duration: 0 },
+      status: "not-started",
+    };
+    const out = addTask(SPINE_FIXTURE, gate);
+    expect(out.indexOf("id: gate.first-flight")).toBeGreaterThan(
+      out.indexOf("id: gate.engine-hotfire"),
+    );
+    const { spineTasks, issues } = parseProjectFile("data/project.yaml", out);
+    expect(issues).toEqual([]);
+    expect(spineTasks.some((t) => (t as { id: string }).id === "gate.first-flight")).toBe(true);
+  });
+
+  it("creates the reviews: list when the file has none", () => {
+    const bare = `# project.yaml\nproject: "Fresh"\n`;
+    const out = addTask(bare, {
+      id: "review.pdr",
+      name: "PDR",
+      milestone: true,
+      gate: "review",
+      schedule: { mode: "auto", duration: 0 },
+    });
+    expect(out).toContain("reviews:");
+    expect(out).toContain("id: review.pdr");
+  });
+});

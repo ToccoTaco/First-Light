@@ -57,7 +57,8 @@ export type CountdownModel =
       gateName: string;
       gateDateISO: ISODate;
     }
-  | { kind: "all-passed" }
+  | { kind: "no-gates" } // no gates on the board at all (fresh / cleared project)
+  | { kind: "all-passed" } // gates exist, but every one is behind us
   | { kind: "no-schedule" };
 
 /** One squad's (or the overall) progress: duration-weighted % + a counts line. */
@@ -227,11 +228,16 @@ export function computeCountdown(
   if (project.tasks.length > 0 && Object.keys(schedule.tasks).length === 0) {
     return { kind: "no-schedule" };
   }
-  const gates = project.tasks
-    .filter((t) => t.gate !== undefined && schedule.tasks[t.id])
+  // No gate on the board at all — a fresh or cleared project. Distinct from
+  // "all-passed" (gates exist but are behind us): no gold number in either, but
+  // the copy differs so the hero reads honestly.
+  const gateTasks = project.tasks.filter((t) => t.gate !== undefined);
+  if (gateTasks.length === 0) return { kind: "no-gates" };
+  const gates = gateTasks
+    .filter((t) => schedule.tasks[t.id])
     .map((t) => ({ id: t.id, dateISO: schedule.tasks[t.id].earliestStart }));
   const nextId = nextGateId(gates, today);
-  if (!nextId) return { kind: "all-passed" }; // no gates, or every gate is past
+  if (!nextId) return { kind: "all-passed" }; // every gate is in the past
   const gate = project.tasks.find((t) => t.id === nextId)!;
   const dateISO = schedule.tasks[nextId].earliestStart;
   return {
