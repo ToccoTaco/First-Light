@@ -502,6 +502,14 @@
   --text-on-gold: #0c2340; /* ink on a gold FILL (the Save button) — gold-as-fill carries ink text in both modes (§2) */
   --backdrop: rgba(4, 9, 18, 0.6); /* modal scrim (settings) — deep-space dim */
 
+  /* Scrollbar tokens (chart + page). Split off --surface/--surface-raised so the
+   * thumb stays VISIBLE in light mode (where both of those resolve to white and
+   * the old thumb vanished on the white track). Dark keeps the prior look —
+   * track = surface navy, thumb = raised navy — so dark mode is unchanged. */
+  --scrollbar-track: #0c2340; /* = --surface (dark unchanged) */
+  --scrollbar-thumb: #123056; /* = --surface-raised (dark unchanged) */
+  --scrollbar-thumb-hover: #1c3252; /* = --border-hair (dark unchanged) */
+
   /* §3 Typography — two families, mode-independent (defined once on :root, so
    * light mode inherits them too). Inter is used only when locally installed;
    * otherwise the system's closest geometric sans / mono per §3. No webfont
@@ -575,14 +583,34 @@
     0.35
   ); /* modal scrim — lighter navy dim for daytime */
 
+  /* Scrollbar tokens, light mode — the fix for the invisible white-on-white
+   * thumb (2026-07-08): a clear mid slate-gray thumb on a faint cool track, so
+   * the chart's scrollbars read plainly against the white surface. */
+  --scrollbar-track: #e7eaf0; /* faint cool track (a hair off the surface white) */
+  --scrollbar-thumb: #b3bccb; /* mid slate-gray thumb — clearly visible on white */
+  --scrollbar-thumb-hover: #97a2b4; /* darker on hover */
+
   /* §5 nebula, light mode: the CHART screen's nebula stands down. Of §5's two
    * sanctioned options (absent, or a ~0.03 cool wash) the chart takes the
    * QUIETER one — absent. `none` keeps that canvas clean and honest ("don't
-   * force a nebula onto white; honesty over consistency"). The header showcase
-   * stands down the same way — no header nebula and no starfield on white. */
+   * force a nebula onto white; honesty over consistency"). */
   --nebula: none;
-  --nebula-header: none;
-  --starfield: none;
+
+  /* HEADER atmosphere, light mode — user direction 2026-07-08: the living space
+   * background now runs in BOTH themes, daytime-quiet. A barely-there cool wash
+   * (peaks 0.035–0.05, inside §5's light ceiling) pushed to the corners + a warm
+   * dust whisper, with a few faint NAVY star glints toward the right (white dots
+   * vanish on white). All positioned in % away from the far-left wordmark, so
+   * "First Light" keeps full contrast. The drift animation lives in app.css. */
+  --nebula-header:
+    radial-gradient(65% 150% at 30% 0%, rgba(28, 79, 143, 0.05), transparent 72%),
+    radial-gradient(58% 150% at 86% 100%, rgba(83, 74, 183, 0.04), transparent 72%),
+    radial-gradient(44% 130% at 62% 22%, rgba(201, 151, 0, 0.035), transparent 66%);
+  --starfield:
+    radial-gradient(1.5px 1.5px at 62% 40%, rgba(12, 35, 64, 0.14), transparent 60%),
+    radial-gradient(1px 1px at 78% 66%, rgba(12, 35, 64, 0.11), transparent 60%),
+    radial-gradient(1px 1px at 88% 30%, rgba(12, 35, 64, 0.12), transparent 60%),
+    radial-gradient(1px 1px at 50% 74%, rgba(12, 35, 64, 0.1), transparent 60%);
 
   /* DASHBOARD atmosphere, light mode — user direction 2026-07-07: the space
    * feeling now lives in BOTH themes, daytime-quiet. A barely-there cool wash

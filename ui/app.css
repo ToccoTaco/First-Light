@@ -59,16 +59,19 @@ body {
   height: 12px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--surface);
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--surface-raised);
+  background: var(--scrollbar-thumb);
   border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 /* The corner where the two scrollbars meet (and DHTMLX's scale/scroll corner
  * placeholder) — token it so no light sliver shows through in dark mode. */
 ::-webkit-scrollbar-corner {
-  background: var(--surface);
+  background: var(--scrollbar-track);
 }
 
 /* Full-height flex column: header + toolbar + banner are fixed, chart flexes.
@@ -192,24 +195,88 @@ body {
   overflow: hidden; /* clip the nebula/stars to the panel's rounded corners */
   isolation: isolate; /* keep the ::before stacking local to the header */
 }
-/* Header nebula + starfield (dark only; both tokens resolve to `none` in light,
- * so this layer paints nothing there). A left-edge fade to solid --surface keeps
- * the clouds off "First Light" + the subtitle so title contrast stays full. */
-.fl-header::before {
-  content: "";
+/* Lift the actual content above the atmosphere layer (.fl-atmo, styled below,
+ * is pinned to z-index 0 so this doesn't raise it). */
+.fl-header > * {
+  position: relative;
+  z-index: 1;
+}
+.fl-header > .fl-atmo {
+  z-index: 0;
+}
+/* Header atmosphere bindings: clouds = --nebula-header, stars = --starfield
+ * (both carry dark AND light values now — see tokens.css). A static left fade
+ * keeps them off "First Light" + the subtitle so the wordmark stays full-contrast. */
+.fl-header .fl-atmo-clouds {
+  background-image: var(--nebula-header);
+}
+.fl-header .fl-atmo-stars {
+  background-image: var(--starfield);
+}
+.fl-header .fl-atmo-fade {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(90deg, var(--surface) 0%, transparent 24%);
+  pointer-events: none;
+}
+
+/* ── shared living-space atmosphere (header + dashboard hero) ─────────────────────
+ * Two parallax layers (clouds + stars) drift on transform at different speeds
+ * and directions for depth; the stars also breathe on opacity. Every layer is
+ * oversized (inset:-8%) so the drift never reveals a hard edge, and every loop
+ * is long (48–72s). STATIC is the truth: the whole animation block is gated
+ * behind prefers-reduced-motion:no-preference, so a reduced-motion viewer sees a
+ * still field. Contained inside the parent's overflow:hidden — nothing escapes
+ * the two boxes. */
+.fl-atmo {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image:
-    var(--starfield), var(--nebula-header),
-    linear-gradient(90deg, var(--surface) 0%, transparent 22%);
-  background-repeat: no-repeat; /* each star/cloud paints once, not tiled */
+  overflow: hidden;
 }
-/* Lift the actual content above the atmosphere layer. */
-.fl-header > * {
-  position: relative;
-  z-index: 1;
+.fl-atmo-layer {
+  position: absolute;
+  inset: -8%;
+  background-repeat: no-repeat; /* each star/cloud paints once, not tiled */
+  will-change: transform;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fl-atmo-clouds {
+    animation: fl-atmo-drift-a 52s ease-in-out infinite alternate;
+  }
+  .fl-atmo-stars {
+    animation:
+      fl-atmo-drift-b 68s ease-in-out infinite alternate,
+      fl-atmo-twinkle 11s ease-in-out infinite alternate;
+  }
+}
+/* Slow diagonal drift, one direction. */
+@keyframes fl-atmo-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.02);
+  }
+  to {
+    transform: translate3d(2.4%, -1.8%, 0) scale(1.06);
+  }
+}
+/* The parallax counter-drift — opposite direction, different speed. */
+@keyframes fl-atmo-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+  to {
+    transform: translate3d(-2%, 1.6%, 0) scale(1.07);
+  }
+}
+/* A whisper of collective breathe on the star layer (opacity only). */
+@keyframes fl-atmo-twinkle {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 1;
+  }
 }
 /* The "First Light" wordmark — the one place the display face appears. Michroma
  * is wide, so it sits at a slightly smaller size with mission-patch tracking; it

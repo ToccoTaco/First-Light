@@ -181,11 +181,13 @@ export function createGanttView(
   // otherwise month view would snap a drop to week boundaries and lie about it.
   gantt.config.round_dnd_dates = false;
   gantt.config.date_format = "%Y-%m-%d"; // how our ISO strings are parsed
-  // 22px bars in 34px rows: DHTMLX centres the bar, leaving ~6px of air above
-  // and below — breathing room so rows read separately (user feedback), not
-  // sprawl. The theme's bar height override matches (gantt-theme.css).
-  gantt.config.row_height = 34;
-  gantt.config.bar_height = 22;
+  // 15px bars in 27px rows: a tighter rhythm (user experiment 2026-07-08) so a
+  // fuller future chart reads cleaner. DHTMLX centres the bar, leaving ~6px of
+  // air above and below — rows still read separately, just less sprawl. The
+  // theme's bar-height override matches this (gantt-theme.css); the custom ghost
+  // bars + markers derive their height from getTaskPosition, so they follow.
+  gantt.config.row_height = 27;
+  gantt.config.bar_height = 15;
   gantt.config.scale_height = 46;
   gantt.config.grid_width = 460; // 260 + 112 + 88
   gantt.config.grid_resize = true;
@@ -196,12 +198,19 @@ export function createGanttView(
   // across the whole (padded) date range at a fixed zoom instead of switching
   // presets to see further out. Custom overlays still live in the timeline's own
   // scrolling data layer (gantt.$task_data), so markers + ghosts pan with the bars.
+  //
+  // A `resizer` cell between the grid and the timeline lets the lead drag the
+  // whole sidebar wider or narrower. DHTMLX writes the dragged size back into
+  // gantt.config.grid_width live; since render()/setZoom never re-assign
+  // grid_width after init, a user-dragged width survives every re-render, zoom
+  // drag and edit re-parse untouched (styled as a hairline in gantt-theme.css).
   gantt.config.layout = {
     css: "gantt_container",
     rows: [
       {
         cols: [
           { view: "grid", scrollX: "scrollHor", scrollY: "scrollVer" },
+          { resizer: true, width: 1 },
           { view: "timeline", scrollX: "scrollHor", scrollY: "scrollVer" },
           { view: "scrollbar", id: "scrollVer" },
         ],

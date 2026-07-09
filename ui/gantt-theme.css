@@ -91,25 +91,50 @@
  * they read as part of the console, not the stock light chrome. */
 .gantt_hor_scroll,
 .gantt_ver_scroll {
-  scrollbar-color: var(--surface-raised) var(--surface); /* Firefox: thumb track */
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); /* Firefox: thumb track */
   scrollbar-width: thin;
 }
 .gantt_hor_scroll::-webkit-scrollbar,
 .gantt_ver_scroll::-webkit-scrollbar {
   width: 12px;
   height: 12px;
-  background: var(--surface);
+  background: var(--scrollbar-track);
 }
 .gantt_hor_scroll::-webkit-scrollbar-thumb,
 .gantt_ver_scroll::-webkit-scrollbar-thumb {
-  background: var(--surface-raised);
+  /* Routed through dedicated scrollbar tokens (2026-07-08): the old
+   * --surface-raised thumb went white-on-white in light mode. Dark keeps the
+   * same navy look; light gets a clearly visible slate-gray thumb. */
+  background: var(--scrollbar-thumb);
   border-radius: 6px;
   /* Inset the thumb with a track-coloured border so it reads as a slim pill. */
-  border: 3px solid var(--surface);
+  border: 3px solid var(--scrollbar-track);
 }
 .gantt_hor_scroll::-webkit-scrollbar-thumb:hover,
 .gantt_ver_scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ── grid ↔ timeline resizer — drag the sidebar wider or narrower ────────────── */
+/* A `resizer` layout cell (gantt-adapter.ts) sits between the grid and timeline.
+ * It renders 1px wide; we paint it as a subtle hairline, swap the stock e-resize
+ * cursor for col-resize, and give it a gentle token glow on hover/drag. The blue
+ * drag-stick DHTMLX shows mid-drag is re-tinted to the console's activity blue. */
+.gantt_layout_cell.gantt_resizer {
   background: var(--border-hair);
+  overflow: visible;
+  cursor: col-resize;
+}
+.gantt_resizer_x {
+  cursor: col-resize;
+}
+.gantt_resizer:hover,
+.gantt_resizer_active {
+  background: var(--text-telemetry);
+  box-shadow: 0 0 0 1px var(--text-telemetry);
+}
+.gantt_resizer_stick {
+  background: var(--bar-active) !important;
 }
 
 /* Every stock-skin border → hairline navy. */
@@ -150,23 +175,23 @@
 /* ── bars (leaf tasks) — §7: the FILL encodes STATE, not squad identity ──────── */
 
 .gantt_task_line {
-  border-radius: 4px;
+  border-radius: 3px;
   border: 1px solid var(--bar-shade); /* subtle darker edge, hue-preserving */
   box-shadow: none;
-  height: 22px !important;
-  /* Row height is 34 (see gantt-adapter) with 22px bars → DHTMLX centres them
-   * with real air between rows; no margin nudge needed any more. */
+  height: 15px !important;
+  /* Row height is 27 (see gantt-adapter) with 15px bars → DHTMLX centres them
+   * with ~6px of air above and below; tighter rows, still separate. */
 }
 .gantt_task_line .gantt_task_progress {
   /* Progress = a darker inner overlay, unchanged (§7 progress %). */
   background-color: var(--bar-shade);
-  border-radius: 3px 0 0 3px;
+  border-radius: 2px 0 0 2px;
   opacity: 1;
 }
 .gantt_task_line .gantt_task_content {
   color: var(--text-on-accent);
-  font-size: 11px;
-  line-height: 22px;
+  font-size: 10px;
+  line-height: 15px;
 }
 
 /* State fills for leaf-task bars. Precedence is expressed by SOURCE ORDER at
@@ -238,8 +263,10 @@
 .gantt_task_line.fl-summary {
   background: var(--text-secondary) !important;
   border: none !important;
-  height: 8px !important;
-  margin-top: 8px;
+  height: 6px !important;
+  /* Re-centre the slim bracket in the 27px row now the bars are 15px (the line
+   * sits at top ~6px; +5px drops the 6px bracket to the row's mid-line). */
+  margin-top: 5px;
   border-radius: 2px;
 }
 .gantt_task_line.gantt_project .gantt_task_progress {

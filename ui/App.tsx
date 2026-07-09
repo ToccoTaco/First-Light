@@ -922,6 +922,16 @@ function Header({
   const target = otherMode(mode);
   return (
     <header className="fl-header">
+      {/* Living space background (2026-07-08): two parallax cloud/star layers
+          drifting at different speeds + a static left fade that keeps the
+          wordmark off the atmosphere. Motion is transform/opacity-only, long-
+          looped and reduced-motion-guarded (app.css); light mode carries its own
+          daytime-quiet tokens, so it breathes in both themes. */}
+      <div className="fl-atmo" aria-hidden="true">
+        <div className="fl-atmo-layer fl-atmo-clouds" />
+        <div className="fl-atmo-layer fl-atmo-stars" />
+        <div className="fl-atmo-fade" />
+      </div>
       <div>
         <h1>First Light</h1>
         <div className="fl-sub">

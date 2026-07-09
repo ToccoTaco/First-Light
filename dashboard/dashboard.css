@@ -39,19 +39,64 @@
   text-align: center;
   padding: 44px 24px;
 }
-.fl-dash-hero::before {
-  content: "";
-  position: absolute;
+/* Hero atmosphere bindings (2026-07-08): the hero's own richer tokens ride the
+ * shared .fl-atmo parallax layers (base + drift + reduced-motion guard live in
+ * app.css). Dark = the header recipe with more presence + a cool horizon glow;
+ * light = a barely-there wash + near-invisible navy stars — motion in BOTH
+ * themes without costing daytime clarity. The countdown sits over the calm
+ * centre (fl-dash-hero-inner, z-index 1), so its contrast never moves. */
+.fl-dash-hero .fl-atmo-clouds {
+  background-image: var(--nebula-hero);
+}
+.fl-dash-hero .fl-atmo-stars {
+  background-image: var(--starfield-hero);
+}
+/* The horizon glow rises from the base — a static layer (no drift), so the
+ * skyline stays put under the drifting sky above it. */
+.fl-dash-hero .fl-atmo-horizon {
   inset: 0;
-  z-index: 0;
+  background-image: var(--hero-horizon);
+  animation: none;
+}
+/* An occasional slow diagonal shooting-star streak — DARK ONLY (a white streak
+ * would vanish on the light hero) and reduced-motion-guarded. Dormant for most
+ * of a long loop, then a single slow drift across the upper band. */
+.fl-shooting-star {
+  position: absolute;
+  top: 15%;
+  left: 56%;
+  width: 88px;
+  height: 1px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--text-on-accent));
+  opacity: 0;
+  transform: rotate(19deg);
   pointer-events: none;
-  /* The hero carries its OWN atmosphere tokens (2026-07-07): dark = the header
-   * recipe with a step more presence + a faint cool horizon glow at the base;
-   * light = a barely-there wash and one-or-two near-invisible navy stars, so
-   * the space feeling lives in BOTH themes without costing daytime clarity. */
-  background-image:
-    var(--starfield-hero), var(--nebula-hero), var(--hero-horizon);
-  background-repeat: no-repeat;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-mode="dark"] .fl-shooting-star {
+    animation: fl-shoot 22s ease-in infinite;
+  }
+}
+@keyframes fl-shoot {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(19deg);
+  }
+  4% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.85;
+  }
+  17% {
+    opacity: 0;
+    transform: translate3d(184px, 62px, 0) rotate(19deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(184px, 62px, 0) rotate(19deg);
+  }
 }
 /* A quiet horizon hairline at the hero's base — a neutral gradient (NEVER gold;
  * gold on this screen is the T-minus number alone), fading in from the edges so

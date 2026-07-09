@@ -69,6 +69,17 @@ function TileLabel({ children }: { children: string }) {
 function Hero({ countdown }: { countdown: CountdownModel }) {
   return (
     <section className="fl-dash-hero">
+      {/* Living space background (2026-07-08): parallax cloud + star layers
+          drifting at different speeds, a faint horizon glow, and — dark only — an
+          occasional slow shooting-star streak. Transform/opacity-only, long-
+          looped, reduced-motion-guarded (dashboard.css). The countdown sits over
+          the calm centre, so its contrast never moves; both themes get motion. */}
+      <div className="fl-atmo" aria-hidden="true">
+        <div className="fl-atmo-layer fl-atmo-clouds" />
+        <div className="fl-atmo-layer fl-atmo-stars" />
+        <div className="fl-atmo-layer fl-atmo-horizon" />
+        <div className="fl-shooting-star" />
+      </div>
       <div className="fl-dash-hero-inner">
         {countdown.kind === "countdown" && (
           <>
