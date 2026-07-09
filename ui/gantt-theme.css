@@ -170,11 +170,13 @@
 }
 
 /* State fills for leaf-task bars. Precedence is expressed by SOURCE ORDER at
- * equal specificity (done last so it beats critical; critical after the plain
- * states so gold beats blue/faint/blocked-fill) — mirrors the §7 note that
- * "critical wins the fill" EXCEPT for done, which recedes even when critical.
+ * equal specificity (critical LAST so gold beats every other fill, including
+ * done) — the §7 "critical wins the fill" rule now holds without exception:
+ * since the done-recedes rule was overridden (user direction 2026-07-07, done
+ * is now an explicit green), the gold thread stays unbroken across finished
+ * critical work.
  *
- *   not-started ▸ in-progress ▸ blocked ▸ critical(gold) ▸ done(receded)
+ *   not-started ▸ in-progress ▸ blocked ▸ done(green) ▸ critical(gold)
  */
 
 /* not-started — quiet gunmetal HARDWARE, not blue-on-blue: a solid neutral
@@ -210,7 +212,15 @@
   z-index: 3;
   pointer-events: none;
 }
-/* critical — the gold thread. Beats blue / faint / blocked FILL (source order). */
+/* done — an explicit ND Irish Green (user-directed override 2026-07-07 of the
+ * §2 recede rule): finished work reads as clearly green, muted enough not to
+ * fight the gold signal. Sits BEFORE critical so gold still wins the fill. */
+.gantt_task_line.fl-bar.fl-st-done {
+  background: var(--done-fill);
+  border: 1px solid var(--done-edge);
+}
+/* critical — the gold thread. LAST at this specificity, so gold beats every
+ * other fill (blue / faint / blocked / done-green): the thread stays unbroken. */
 .gantt_task_line.fl-bar.fl-critical {
   background: var(--gold);
   border: 1px solid var(--bar-shade);
@@ -220,12 +230,6 @@
  * Higher specificity than the critical rule, so only the border is re-asserted. */
 .gantt_task_line.fl-bar.fl-critical.fl-st-blocked {
   border: 2px solid var(--blocked-fg);
-}
-/* done — history, not signal: recedes even when critical (source order wins). */
-.gantt_task_line.fl-bar.fl-st-done {
-  background: var(--text-secondary);
-  border: 1px solid var(--bar-shade);
-  opacity: 0.5;
 }
 
 /* ── summaries: thin neutral bracket, NOT squad-coloured ───────────────────── */
@@ -388,7 +392,8 @@
   font-weight: 500;
 }
 .fl-status-done {
-  color: var(--text-secondary);
+  /* Done reads green in the grid too (2026-07-07 override of the recede rule). */
+  color: var(--done-text);
 }
 /* Finish is a date → telemetry mono (§3). */
 .fl-finish-cell {

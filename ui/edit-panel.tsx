@@ -196,17 +196,23 @@ function RolledUpInfo({
           ? "This is a summary — its dates, status and progress roll up from the tasks beneath it. Edit those tasks to change it."
           : "This is a group header — it rolls up everything inside it. Open a task beneath it to edit."}
       </p>
-      <Field label="Status">
-        <span className="fl-ro">{statusLabel(row.status)}</span>
-      </Field>
-      <Field label="Progress">
-        <span className="fl-ro fl-tel">{Math.round(row.percent)}%</span>
-      </Field>
-      <Field label="Span">
-        <span className="fl-ro fl-tel">
-          {shortDate(row.startISO)} → {shortDate(exclusiveToLast(row.endISO))}
-        </span>
-      </Field>
+      <Box>
+        <Field label="Status">
+          <span
+            className={`fl-ro${row.status === "done" ? " fl-ro-done" : ""}`}
+          >
+            {statusLabel(row.status)}
+          </span>
+        </Field>
+        <Field label="Progress">
+          <span className="fl-ro fl-tel">{Math.round(row.percent)}%</span>
+        </Field>
+        <Field label="Span">
+          <span className="fl-ro fl-tel">
+            {shortDate(row.startISO)} → {shortDate(exclusiveToLast(row.endISO))}
+          </span>
+        </Field>
+      </Box>
     </>
   );
   return inline ? body : <div className="fl-panel-body">{body}</div>;
@@ -224,21 +230,31 @@ function SpineEditor(props: EditPanelProps & { task: Task }) {
         real date once the team commits to one.
       </p>
       <Section label="Identity">
-        <NameField task={task} onPatch={props.onPatch} />
-        <StatusField task={task} onPatch={props.onPatch} />
+        <Box>
+          <NameField task={task} onPatch={props.onPatch} />
+        </Box>
+        <Box>
+          <StatusField task={task} onPatch={props.onPatch} />
+        </Box>
       </Section>
       <Section label="Timing">
-        <TimingFields
-          task={task}
-          onPatch={props.onPatch}
-          showDuration={false}
-        />
+        <Box>
+          <TimingFields
+            task={task}
+            onPatch={props.onPatch}
+            showDuration={false}
+          />
+        </Box>
       </Section>
       <Section label="Dependencies">
-        <DependencyField {...props} task={task} />
+        <Box>
+          <DependencyField {...props} task={task} />
+        </Box>
       </Section>
       <Section label="Risk">
-        <DeadlineField task={task} onPatch={props.onPatch} />
+        <Box>
+          <DeadlineField task={task} onPatch={props.onPatch} />
+        </Box>
       </Section>
       <div className="fl-panel-add">
         <button
@@ -275,24 +291,38 @@ function SquadEditor(props: EditPanelProps & { task: Task; squadId: string }) {
   return (
     <div className="fl-panel-body">
       <Section label="Identity">
-        <NameField task={task} onPatch={props.onPatch} />
-        <StatusField task={task} onPatch={props.onPatch} />
-        {showPercent && <PercentField task={task} onPatch={props.onPatch} />}
+        <Box>
+          <NameField task={task} onPatch={props.onPatch} />
+        </Box>
+        <Box>
+          <StatusField task={task} onPatch={props.onPatch} />
+          {showPercent && <PercentField task={task} onPatch={props.onPatch} />}
+        </Box>
       </Section>
       <Section label="Timing">
-        <TimingFields
-          task={task}
-          onPatch={props.onPatch}
-          showDuration={!isMilestone}
-        />
-        <MilestoneField task={task} onPatch={props.onPatch} />
+        <Box>
+          <TimingFields
+            task={task}
+            onPatch={props.onPatch}
+            showDuration={!isMilestone}
+          />
+        </Box>
+        <Box>
+          <MilestoneField task={task} onPatch={props.onPatch} />
+        </Box>
       </Section>
       <Section label="Dependencies">
-        <DependencyField {...props} task={task} />
+        <Box>
+          <DependencyField {...props} task={task} />
+        </Box>
       </Section>
       <Section label="Risk">
-        <ConfidenceField task={task} onPatch={props.onPatch} />
-        <DeadlineField task={task} onPatch={props.onPatch} />
+        <Box>
+          <ConfidenceField task={task} onPatch={props.onPatch} />
+        </Box>
+        <Box>
+          <DeadlineField task={task} onPatch={props.onPatch} />
+        </Box>
       </Section>
       <div className="fl-panel-add">
         <button
@@ -773,8 +803,8 @@ function DeleteControl(props: EditPanelProps & { task: Task; noun: string }) {
           )}
           {dependents.length > 0 && (
             <div className="fl-panel-note fl-panel-note-tight">
-              {dependents.length} task{dependents.length === 1 ? "" : "s"} depend
-              on it; that dependency will be removed:{" "}
+              {dependents.length} task{dependents.length === 1 ? "" : "s"}{" "}
+              depend on it; that dependency will be removed:{" "}
               {dependents.map(nameOf).join(", ")}.
             </div>
           )}
@@ -883,6 +913,13 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** One field group's rounded container (aesthetic pass 2026-07-07): a bordered,
+ * slightly inset box that strengthens its border on hover (app.css) — the panel
+ * reads as distinct, well-separated controls instead of a flat list. */
+function Box({ children }: { children: ReactNode }) {
+  return <div className="fl-panel-box">{children}</div>;
+}
+
 /** A token-styled toggle switch — the app-like replacement for a raw checkbox. */
 function Toggle({
   checked,
@@ -924,6 +961,9 @@ function Segmented<T extends string>({
           key={o.id}
           type="button"
           aria-pressed={value === o.id}
+          // data-opt lets the theme give one option its own pressed colour —
+          // the Done chip reads done-green (2026-07-07 override), via CSS only.
+          data-opt={o.id}
           onClick={() => onPick(o.id)}
         >
           {o.label}

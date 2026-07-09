@@ -45,7 +45,12 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: var(--starfield), var(--nebula-header);
+  /* The hero carries its OWN atmosphere tokens (2026-07-07): dark = the header
+   * recipe with a step more presence + a faint cool horizon glow at the base;
+   * light = a barely-there wash and one-or-two near-invisible navy stars, so
+   * the space feeling lives in BOTH themes without costing daytime clarity. */
+  background-image:
+    var(--starfield-hero), var(--nebula-hero), var(--hero-horizon);
   background-repeat: no-repeat;
 }
 /* A quiet horizon hairline at the hero's base — a neutral gradient (NEVER gold;
@@ -277,12 +282,13 @@
   overflow: hidden;
   min-width: 0;
 }
-/* Bars carry MAGNITUDE, not identity — the neutral/blue activity family, never
- * gold, never a per-squad fill (the chip carries identity). */
+/* Bars carry MAGNITUDE, not identity — never gold, never a per-squad fill (the
+ * chip carries identity). The filled share is COMPLETED work, so it now reads
+ * in the done-green family (2026-07-07 override of the recede rule). */
 .fl-prog-fill {
   display: block;
   height: 100%;
-  background: var(--bar-active);
+  background: var(--done-fill);
   border-radius: 4px 0 0 4px;
 }
 .fl-prog-pct {
@@ -299,6 +305,11 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-telemetry);
+}
+/* The "N done" counter reads in done-green (2026-07-07 override) — the one
+ * tinted word in an otherwise telemetry-dim counts line. */
+.fl-count-done {
+  color: var(--done-text);
 }
 
 /* ── slippage (deliverable 3) ────────────────────────────────────────────────── */

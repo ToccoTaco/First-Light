@@ -31,6 +31,17 @@
   --blocked-fg: #e39a92; /* §2 blocked foreground */
   --blocked-bg: rgba(180, 84, 74, 0.18); /* §2 blocked background */
 
+  /* DONE family — user-directed change 2026-07-07, OVERRIDES DESIGN §2's
+   * "completed work recedes to gray" rule: done is now an explicit green —
+   * Notre Dame Irish Green (#00843D). In dark mode the fill is lifted a step
+   * (same hue) so it reads clearly green against the navy field without
+   * glowing like a success toast; light mode carries the pure ND green on
+   * white. Gold stays the only signal: critical-gold still WINS the bar fill
+   * where a task is both done and critical (see gantt-theme.css source order). */
+  --done-fill: #0e9152; /* done bar / legend chip fill (lifted Irish green) */
+  --done-edge: #0b6b3c; /* its border — a darker green to seat the bar */
+  --done-text: #46bd83; /* done used as TEXT (status cell, counters) — clears --surface */
+
   /* NEUTRAL family — EXTENDS §2 (pending the user folding it into the doc).
    * A desaturated gunmetal slate — the "hardware" family — so the resting chart
    * reads navy SURFACES + gray HARDWARE + gold SIGNAL + blue ACTIVITY instead of
@@ -213,27 +224,96 @@
    * solid tiles). "Up the nebula a touch, here only" — richer violet/blue corners
    * that composite over the base canvas nebula so the dashboard reads as deeper
    * space than the chart. Corners only, center-right left empty; still felt in
-   * the margins, never behind a tile's text. Light mode → none (see below). */
+   * the margins, never behind a tile's text.
+   *
+   * AMPLIFIED (user direction 2026-07-07: "lean into the space theme"): peaks
+   * raised ~0.15/0.16 → 0.20/0.22, plus a second violet depth-cloud low-center
+   * and a whisper of gold dust upper-right — same vocabulary, more presence.
+   * Tiles stay solid --surface on top, so text contrast is untouched.
+   * Light mode → its own barely-there daytime wash (see the light set). */
   --nebula-dash:
-    radial-gradient(50% 55% at 6% 4%, rgba(83, 74, 183, 0.16), transparent 62%),
+    radial-gradient(50% 55% at 6% 4%, rgba(83, 74, 183, 0.2), transparent 62%),
     /* violet cloud, upper-left */
     radial-gradient(
         48% 52% at 96% 20%,
-        rgba(28, 79, 143, 0.15),
+        rgba(28, 79, 143, 0.19),
         transparent 60%
       ),
     /* blue cloud, upper-right */
     radial-gradient(
         60% 55% at 88% 98%,
-        rgba(45, 60, 150, 0.16),
+        rgba(45, 60, 150, 0.22),
         transparent 62%
       ),
     /* deep-indigo cloud, lower-right */
     radial-gradient(
         42% 46% at 20% 96%,
-        rgba(28, 79, 143, 0.12),
+        rgba(28, 79, 143, 0.16),
         transparent 60%
-      ); /* blue cloud, lower-left */
+      ),
+    /* blue cloud, lower-left */
+    radial-gradient(
+        55% 40% at 46% 104%,
+        rgba(83, 74, 183, 0.1),
+        transparent 65%
+      ),
+    /* violet depth-cloud, low-center (the second layer of depth) */
+    radial-gradient(30% 34% at 82% 6%, rgba(201, 151, 0, 0.05), transparent 55%); /* gold dust, whisper (ties the field to the accent) */
+
+  /* A soft vignette at the DASHBOARD canvas edges (dark only) — the gutters
+   * darken very slightly toward the frame, which deepens the space without
+   * touching any tile. Painted with the dash layers on the same fixed ::before. */
+  --dash-vignette: radial-gradient(
+    130% 120% at 50% 42%,
+    transparent 58%,
+    rgba(3, 8, 17, 0.42) 100%
+  );
+
+  /* A second, SMALLER star layer for the dashboard gutters (dark only): a few
+   * 0.8–2px stars at other depths than --starfield-dash. It lives on its own
+   * fixed ::after so it can carry the ultra-low-amplitude twinkle (app.css,
+   * reduced-motion-guarded; static viewers see it still, at rest opacity). */
+  --starfield-dash2:
+    radial-gradient(
+      2px 2px at 300px 80px,
+      rgba(255, 255, 255, 0.4),
+      transparent 60%
+    ),
+    radial-gradient(
+      5px 5px at 300px 80px,
+      rgba(255, 255, 255, 0.12),
+      transparent 70%
+    ),
+    radial-gradient(
+      1.4px 1.4px at 1240px 900px,
+      rgba(255, 255, 255, 0.36),
+      transparent 60%
+    ),
+    radial-gradient(
+      0.8px 0.8px at 520px 620px,
+      rgba(255, 255, 255, 0.24),
+      transparent 60%
+    ),
+    radial-gradient(
+      0.8px 0.8px at 1360px 180px,
+      rgba(255, 255, 255, 0.26),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 180px 940px,
+      rgba(255, 255, 255, 0.22),
+      transparent 60%
+    ),
+    radial-gradient(
+      0.8px 0.8px at 860px 40px,
+      rgba(255, 255, 255, 0.2),
+      transparent 60%
+    ),
+    radial-gradient(
+      1.2px 1.2px at 1600px 460px,
+      rgba(255, 255, 255, 0.3),
+      transparent 60%
+    );
 
   /* §5 flourish — a SPARSE starfield extended into the dashboard gutters (dark
    * only). Dozens, not hundreds: ~2 dozen 1px dots + a handful of brighter 1.5px
@@ -355,6 +435,48 @@
       transparent 60%
     );
 
+  /* §5 flourish — the DASHBOARD HERO band (T-minus), split off the header
+   * tokens (aesthetic pass 2026-07-07) so the hero can lean further into the
+   * atmosphere than the title block WITHOUT touching the chart screen's header.
+   * Dark: the header recipe with a step more presence (peaks ~0.34/0.36/0.18),
+   * composed for the tall countdown band; the countdown itself sits over the
+   * calm center so its contrast never moves. */
+  --nebula-hero:
+    radial-gradient(
+      70% 130% at 22% 0%,
+      rgba(83, 74, 183, 0.34),
+      transparent 70%
+    ),
+    /* violet cloud, upper-left */
+    radial-gradient(
+        62% 140% at 88% 100%,
+        rgba(28, 79, 143, 0.36),
+        transparent 70%
+      ),
+    /* blue cloud, lower-right */
+    radial-gradient(
+        46% 120% at 68% 18%,
+        rgba(201, 151, 0, 0.18),
+        transparent 66%
+      ); /* gold dust — richer here than anywhere, still atmosphere */
+  --starfield-hero: var(--starfield); /* the hero shares the header starfield */
+  /* A very faint cool horizon glow rising from the hero's base hairline — the
+   * countdown reads as sitting above a distant skyline. NEVER gold (the T-minus
+   * number owns this screen's gold); a dim steel-blue, felt more than seen. */
+  --hero-horizon: radial-gradient(
+    56% 110px at 50% 100%,
+    rgba(110, 168, 230, 0.12),
+    transparent 72%
+  );
+
+  /* EDIT-PANEL / SETTINGS field boxes (aesthetic pass 2026-07-07): each field
+   * group sits in its own rounded bordered container. Dark: the box recesses a
+   * step DOWN from the raised panel (--surface tone) behind a hairline a touch
+   * brighter than --border-hair so the edge reads on both surfaces; hover
+   * strengthens the border to --text-telemetry (in app.css — never gold). */
+  --box-bg: #0c2340; /* box surface (inset from the raised panel) */
+  --box-edge: #23406a; /* box hairline (a step up from --border-hair) */
+
   /* Non-palette helpers — mode-independent so they read on any squad hue.
    * They live here (the only literal-bearing file) rather than in a component. */
   --bar-shade: rgba(
@@ -412,6 +534,13 @@
   --blocked-fg: #a0392c; /* §2 blocked foreground */
   --blocked-bg: #f7e1dd; /* §2 blocked background */
 
+  /* DONE family (user-directed override 2026-07-07 — see the dark set's note):
+   * light mode carries the pure ND Irish Green; text darkens a step so 12px
+   * status words clear white comfortably (~6:1). */
+  --done-fill: #00843d; /* done bar / legend chip fill (ND Irish Green) */
+  --done-edge: #006a31; /* its border */
+  --done-text: #006b33; /* done used as TEXT on white */
+
   /* NEUTRAL family (EXTENDS §2) — light-mode gunmetal: a mid slate-gray that
    * reads as quiet hardware on white without dropping to disabled-gray. */
   --neutral-bar: #8a94a3; /* not-started bar fill */
@@ -446,16 +575,61 @@
     0.35
   ); /* modal scrim — lighter navy dim for daytime */
 
-  /* §5 nebula, light mode: the nebula stands down. Of §5's two sanctioned
-   * options (absent, or a ~0.03 cool wash) we take the QUIETER one — absent.
-   * `none` keeps the canvas clean and honest ("don't force a nebula onto
-   * white; honesty over consistency"). The header showcase stands down the same
-   * way — daytime is clear, so no header nebula and no starfield on white. */
+  /* §5 nebula, light mode: the CHART screen's nebula stands down. Of §5's two
+   * sanctioned options (absent, or a ~0.03 cool wash) the chart takes the
+   * QUIETER one — absent. `none` keeps that canvas clean and honest ("don't
+   * force a nebula onto white; honesty over consistency"). The header showcase
+   * stands down the same way — no header nebula and no starfield on white. */
   --nebula: none;
   --nebula-header: none;
   --starfield: none;
-  /* The dashboard atmosphere stands down in daytime too — clean white tiles on a
-   * clear canvas, no clouds and no stars (honesty over consistency, §5). */
-  --nebula-dash: none;
+
+  /* DASHBOARD atmosphere, light mode — user direction 2026-07-07: the space
+   * feeling now lives in BOTH themes, daytime-quiet. A barely-there cool wash
+   * in two corners + a whisper of warm dust (all peaks 0.03–0.06, inside §5's
+   * light-mode ceiling), gutters only — the workspace stays bright, legible,
+   * print-friendly. The starfields and vignette stay ABSENT on white (they
+   * read as dirt, not stars — honesty over consistency). */
+  --nebula-dash:
+    radial-gradient(48% 52% at 6% 4%, rgba(28, 79, 143, 0.05), transparent 62%),
+    /* cool wash, upper-left */
+    radial-gradient(
+        55% 58% at 94% 94%,
+        rgba(83, 74, 183, 0.04),
+        transparent 62%
+      ),
+    /* cool violet wash, lower-right */
+    radial-gradient(32% 36% at 90% 6%, rgba(201, 151, 0, 0.04), transparent 56%); /* warm dust, corner whisper */
   --starfield-dash: none;
+  --starfield-dash2: none;
+  --dash-vignette: none;
+
+  /* The hero band keeps a whisper of sky in daytime: an ultra-faint cool wash
+   * plus one-or-two near-invisible NAVY stars (white dots vanish on white).
+   * The horizon glow stands down — daytime needs no skyline. */
+  --nebula-hero:
+    radial-gradient(
+      60% 130% at 80% 0%,
+      rgba(28, 79, 143, 0.05),
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 120% at 12% 100%,
+      rgba(201, 151, 0, 0.035),
+      transparent 66%
+    );
+  --starfield-hero:
+    radial-gradient(
+      1.5px 1.5px at 71% 30%,
+      rgba(12, 35, 64, 0.16),
+      transparent 60%
+    ),
+    radial-gradient(1px 1px at 58% 64%, rgba(12, 35, 64, 0.12), transparent 60%);
+  --hero-horizon: none;
+
+  /* Edit-panel / settings field boxes: on white the box tints a half-step cool
+   * so it reads as a contained control, behind a slightly-darker-than-hairline
+   * edge. Hover strengthens to --text-telemetry (app.css). */
+  --box-bg: #f8f9fc; /* box surface (whisper of cool off white) */
+  --box-edge: #dde2ec; /* box hairline */
 }

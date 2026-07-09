@@ -9,6 +9,7 @@
 // (the gold thread lives on the chart), the slippage number is blocked-fg only
 // when it moved LATER.
 
+import type { ReactNode } from "react";
 import type {
   BlockedItem,
   CountdownModel,
@@ -38,13 +39,24 @@ function fmtDelta(days: number): string {
   return days > 0 ? `+${days}d` : `−${Math.abs(days)}d`;
 }
 
-function countsLine(c: Rollup["counts"]): string {
-  const parts: string[] = [];
-  if (c.done) parts.push(`${c.done} done`);
-  if (c.inProgress) parts.push(`${c.inProgress} in progress`);
-  if (c.blocked) parts.push(`${c.blocked} blocked`);
-  if (c.notStarted) parts.push(`${c.notStarted} not started`);
-  return parts.length ? parts.join(" · ") : "no tasks yet";
+/* The counts line — telemetry-dim text, except the done counter, which reads
+ * in done-green (user-directed override 2026-07-07: done is an explicit green). */
+function CountsLine({ c }: { c: Rollup["counts"] }) {
+  const parts: ReactNode[] = [];
+  const push = (node: ReactNode) => {
+    if (parts.length) parts.push(" · ");
+    parts.push(node);
+  };
+  if (c.done)
+    push(
+      <span key="done" className="fl-count-done">
+        {c.done} done
+      </span>,
+    );
+  if (c.inProgress) push(`${c.inProgress} in progress`);
+  if (c.blocked) push(`${c.blocked} blocked`);
+  if (c.notStarted) push(`${c.notStarted} not started`);
+  return <>{parts.length ? parts : "no tasks yet"}</>;
 }
 
 /** A console label — small-caps mono, one per tile (DESIGN §4). */
@@ -131,7 +143,7 @@ function Rollups({ rollups }: { rollups: RollupsModel }) {
       <div className="fl-prog-overall">
         <ProgressBar percent={rollups.overall.percent} name="Overall" />
         <div className="fl-prog-counts">
-          {countsLine(rollups.overall.counts)}
+          <CountsLine c={rollups.overall.counts} />
         </div>
       </div>
       <div className="fl-prog-squads">
@@ -142,7 +154,9 @@ function Rollups({ rollups }: { rollups: RollupsModel }) {
               chipColor={s.color}
               name={s.name}
             />
-            <div className="fl-prog-counts">{countsLine(s.counts)}</div>
+            <div className="fl-prog-counts">
+              <CountsLine c={s.counts} />
+            </div>
           </div>
         ))}
       </div>

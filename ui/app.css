@@ -99,16 +99,37 @@ body {
   inset: -8%; /* oversized so the slow drift never reveals an edge */
   z-index: -1;
   pointer-events: none;
-  background-image: var(--starfield-dash), var(--nebula-dash);
+  /* Stars over clouds over the edge vignette (all tokens; light mode resolves
+   * the stars + vignette to `none` and the clouds to a daytime wash). */
+  background-image:
+    var(--starfield-dash), var(--nebula-dash), var(--dash-vignette);
   background-repeat: no-repeat;
   will-change: transform;
 }
+/* A second star depth (dark only — the token is `none` in light): a few larger
+ * and smaller stars on their OWN fixed layer, so they can breathe independently
+ * of the drifting cloud field. Rest state is fully legible without motion. */
+.fl-app.fl-on-dashboard::after {
+  content: "";
+  position: fixed;
+  inset: -8%;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--starfield-dash2);
+  background-repeat: no-repeat;
+  opacity: 0.75; /* the twinkle's midpoint IS the static truth */
+}
 /* Ultra-slow drift — a living nebula (transform only, GPU-cheap). STATIC is the
  * default truth: this whole block is gated behind no-preference, so a reduced-
- * motion viewer sees a still field. ~112s loop, tiny travel, alternating. */
+ * motion viewer sees a still field. ~112s loop, tiny travel, alternating. The
+ * second star layer twinkles at extremely low amplitude (opacity only, ~18s) —
+ * felt, never watched; reduced-motion viewers get the still midpoint above. */
 @media (prefers-reduced-motion: no-preference) {
   .fl-app.fl-on-dashboard::before {
     animation: fl-nebula-drift 112s ease-in-out infinite alternate;
+  }
+  .fl-app.fl-on-dashboard::after {
+    animation: fl-star-breathe 18s ease-in-out infinite alternate;
   }
 }
 @keyframes fl-nebula-drift {
@@ -117,6 +138,14 @@ body {
   }
   to {
     transform: translate3d(1.6%, -1.4%, 0) scale(1.04);
+  }
+}
+@keyframes fl-star-breathe {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 0.9;
   }
 }
 
@@ -296,8 +325,9 @@ body {
   border: 1px solid var(--neutral-edge);
 }
 .fl-leg-done {
-  background: var(--text-secondary); /* receded history */
-  opacity: 0.5;
+  /* Done = explicit ND green (2026-07-07 override of the §2 recede rule). */
+  background: var(--done-fill);
+  border: 1px solid var(--done-edge);
 }
 .fl-leg-guess {
   background: repeating-linear-gradient(
@@ -529,11 +559,21 @@ body {
   margin-bottom: 10px;
 }
 
+/* Each settings row is its own rounded box — the same field-group treatment as
+ * the edit panel (aesthetic pass 2026-07-07): inset --box-bg, --box-edge
+ * hairline, hover strengthens (never gold). */
 .fl-field {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  background: var(--box-bg);
+  border: 1px solid var(--box-edge);
+  border-radius: 9px;
+  padding: 7px 10px;
+}
+.fl-field:hover {
+  border-color: var(--text-telemetry);
 }
 .fl-field:last-child {
   margin-bottom: 0;
@@ -937,6 +977,42 @@ body {
   margin: 0;
 }
 
+/* ── field-group boxes (aesthetic pass 2026-07-07) ─────────────────────────────
+ * Each field/control group sits in its OWN rounded container: a slightly inset
+ * --box-bg surface behind a --box-edge hairline, so the panel reads as distinct,
+ * well-separated controls instead of a flat list. Hovering a box strengthens
+ * its border to the telemetry hairline — an approach light, NEVER gold. */
+.fl-panel-box {
+  background: var(--box-bg);
+  border: 1px solid var(--box-edge);
+  border-radius: 9px;
+  padding: 11px 12px;
+}
+.fl-panel-box + .fl-panel-box {
+  margin-top: 8px;
+}
+.fl-panel-box:hover {
+  border-color: var(--text-telemetry);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fl-panel-box,
+  .fl-panel-add,
+  .fl-panel-delete,
+  .fl-modal .fl-field {
+    transition: border-color 140ms ease;
+  }
+}
+/* Inside a box the last field sheds its stack margin — the box's padding is
+ * the rhythm now. */
+.fl-panel-box .fl-panel-field:last-child {
+  margin-bottom: 0;
+}
+/* Boxes sit right under the section label; tighten the label's gap a touch so
+ * the label reads as the box's console caption. */
+.fl-panel-section .fl-panel-section-label {
+  margin-bottom: 8px;
+}
+
 /* fields */
 .fl-panel-field {
   display: flex;
@@ -1048,6 +1124,12 @@ body {
   background: var(--text-primary);
   color: var(--canvas);
   font-weight: 500;
+}
+/* The one exception: a selected DONE status reads done-green (user-directed
+ * override 2026-07-07) — the status pill matches the chart's done bars. */
+.fl-panel-seg button[data-opt="done"][aria-pressed="true"] {
+  background: var(--done-fill);
+  color: var(--text-on-accent);
 }
 
 /* ── toggle switch (token-styled, replaces raw milestone/deadline checkboxes) ──
@@ -1284,9 +1366,20 @@ body {
   margin-bottom: 8px;
 }
 
-/* add-task + delete (low-emphasis) */
+/* add-task + delete (low-emphasis) — each zone is its own box, same treatment
+ * as the field groups (border strengthens on hover, never gold). */
 .fl-panel-add {
   margin: 14px 0 4px;
+  background: var(--box-bg);
+  border: 1px solid var(--box-edge);
+  border-radius: 9px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fl-panel-add:hover {
+  border-color: var(--text-telemetry);
 }
 .fl-panel-add-btn {
   appearance: none;
@@ -1306,8 +1399,13 @@ body {
 }
 .fl-panel-delete {
   margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-hair);
+  background: var(--box-bg);
+  border: 1px solid var(--box-edge);
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+.fl-panel-delete:hover {
+  border-color: var(--text-telemetry);
 }
 .fl-panel-danger-ghost {
   appearance: none;
@@ -1339,6 +1437,10 @@ body {
 .fl-ro {
   font-size: 12px;
   color: var(--text-primary);
+}
+/* A rolled-up "Done" status reads done-green (2026-07-07 override). */
+.fl-ro-done {
+  color: var(--done-text);
 }
 .fl-tel {
   font-family: var(--font-mono);
