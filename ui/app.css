@@ -1,5 +1,6 @@
-/* ui/app.css — the app shell around the chart: header, toolbar, banner, states.
- * The chart's own look lives in gantt-theme.css; this file is only the chrome.
+/* ui/app.css — the app shell around the chart: toolbar, banner, states.
+ * The chart's own look lives in gantt-theme.css; the header (Concept 3 chrome)
+ * lives in header.css; this file is only the remaining shell.
  *
  * Every colour resolves from ui/tokens.css (DESIGN_DIRECTION §2) — no literals
  * live here. Layout per §5: the NEBULA lives on the page canvas only; header,
@@ -169,8 +170,9 @@ body {
 }
 
 /* Every shell region is a proper §5 PANEL: solid surface, hairline, slight
- * radius. The nebula lives around them, never under them. */
-.fl-header,
+ * radius. The nebula lives around them, never under them. (The HEADER left
+ * this list in the Concept 3 redesign — it is now transparent chrome over the
+ * page canvas; see ui/header.css.) */
 .fl-toolbar,
 .fl-banner,
 .fl-chart {
@@ -179,48 +181,7 @@ body {
   border-radius: 10px;
 }
 
-/* ── header ────────────────────────────────────────────────────────────────── */
-/* The title block is the deliberate SHOWCASE (user direction 2026-07-05): unlike
- * every other panel — which stays solid so the nebula only shows in the gutters —
- * the header carries its OWN richer nebula + a sparse starfield, painted on a
- * ::before layer that sits between the solid --surface and the content. The
- * chart and the rest of the shell stay quiet; only this one panel is atmospheric. */
-.fl-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 18px;
-  position: relative;
-  overflow: hidden; /* clip the nebula/stars to the panel's rounded corners */
-  isolation: isolate; /* keep the ::before stacking local to the header */
-}
-/* Lift the actual content above the atmosphere layer (.fl-atmo, styled below,
- * is pinned to z-index 0 so this doesn't raise it). */
-.fl-header > * {
-  position: relative;
-  z-index: 1;
-}
-.fl-header > .fl-atmo {
-  z-index: 0;
-}
-/* Header atmosphere bindings: clouds = --nebula-header, stars = --starfield
- * (both carry dark AND light values now — see tokens.css). A static left fade
- * keeps them off "First Light" + the subtitle so the wordmark stays full-contrast. */
-.fl-header .fl-atmo-clouds {
-  background-image: var(--nebula-header);
-}
-.fl-header .fl-atmo-stars {
-  background-image: var(--starfield);
-}
-.fl-header .fl-atmo-fade {
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(90deg, var(--surface) 0%, transparent 24%);
-  pointer-events: none;
-}
-
-/* ── shared living-space atmosphere (header + dashboard hero) ─────────────────────
+/* ── shared living-space atmosphere (dashboard hero) ──────────────────────────────
  * Two parallax layers (clouds + stars) drift on transform at different speeds
  * and directions for depth; the stars also breathe on opacity. Every layer is
  * oversized (inset:-8%) so the drift never reveals a hard edge, and every loop
@@ -278,46 +239,6 @@ body {
     opacity: 1;
   }
 }
-/* The "First Light" wordmark — the one place the display face appears. Michroma
- * is wide, so it sits at a slightly smaller size with mission-patch tracking; it
- * reads as an instrument-panel wordmark, not a logo dump. Weight 400 only (the
- * face ships no bold). --gold is scarce, so the wordmark stays warm-white text. */
-.fl-header h1 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 400;
-  letter-spacing: 0.11em;
-  line-height: 1.15;
-  color: var(--text-primary);
-}
-.fl-header .fl-sub {
-  color: var(--text-secondary);
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  margin-top: 5px;
-}
-
-/* Quiet dark/light toggle — low-emphasis, token-only, never gold (not signal).
- * Shows the mode it switches *to* as the affordance. */
-.fl-mode-toggle {
-  appearance: none;
-  flex: 0 0 auto;
-  border: 1px solid var(--border-hair);
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 12px;
-  line-height: 1;
-  padding: 6px 11px;
-  border-radius: 7px;
-  cursor: pointer;
-}
-.fl-mode-toggle:hover {
-  background: var(--surface-raised);
-  color: var(--text-primary);
-}
-
 /* ── toolbar ───────────────────────────────────────────────────────────────── */
 .fl-toolbar {
   display: flex;
@@ -410,14 +331,6 @@ body {
 .fl-leg-glyph {
   font-size: 13px;
   color: var(--gold-text);
-}
-
-/* ── header actions (Settings + mode toggle, both quiet) ───────────────────── */
-.fl-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
 }
 
 /* ── save area (§8 / DESIGN §1) ────────────────────────────────────────────────

@@ -75,6 +75,13 @@
   --done-glow: #16c974; /* done accent glow (Irish-green highlight) */
   --blocked-core: #d76b5f; /* blocked accent core (dot / pulse) */
 
+  /* HEADER SIGIL + WORDMARK (Concept 3, Wave 2) — the orb's specular core and
+   * the wordmark's halo. The core is a white highlight in both modes (it sits
+   * on the gold orb, not the canvas); the halo is the mockup's cool glow in
+   * dark and a paper-emboss lift in light. */
+  --sigil-core: #ffffff; /* sigil orb specular highlight */
+  --wordmark-glow: 0 0 22px rgba(120, 170, 235, 0.28); /* wordmark text-shadow */
+
   /* Implied-but-unnamed tokens (documented per the slice brief): */
   /* §7 guess-hatch stripe pair — RETUNED off §7's original blue-on-blue spec to a
    * cool-neutral light-line/dark-gap pair, so the hatch stays CLEARLY visible on
@@ -692,6 +699,12 @@
   --gold-deep: #7d6002; /* gold gradient's dark stop */
   --done-glow: #14a457; /* done accent glow (Irish-green highlight) */
   --blocked-core: #c65142; /* blocked accent core (dot / pulse) */
+
+  /* Header sigil + wordmark (Concept 3, Wave 2) — light set: the orb keeps its
+   * white specular core; the wordmark trades the cool glow for the mockup's
+   * light-mode emboss (a white lift under navy text). */
+  --sigil-core: #ffffff; /* sigil orb specular highlight */
+  --wordmark-glow: 0 1px 0 rgba(255, 255, 255, 0.7); /* wordmark text-shadow */
 
   /* Guess-hatch pair, RETUNED for light mode: dark slate line on a near-white
    * gap — grayscale contrast so it stays visible over gray/gold/navy/receded

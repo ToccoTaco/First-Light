@@ -1,0 +1,249 @@
+/* ui/header.css — the Concept 3 header: sigil + wordmark · pill tabs · clock ·
+ * glass pills (Wave 2 of the redesign).
+ *
+ * The header is TRANSPARENT over the page canvas — the page-level nebula and
+ * (on the dashboard) starfield show through — and is closed by a bottom
+ * hairline gradient. The old solid header panel + its private atmosphere layer
+ * are retired (see app.css). Every colour resolves from ui/tokens.css; the
+ * glass family (--glass-*, --track-bg, --hairline) landed in Wave 1.
+ *
+ * Two variants, one block: .fl-head is the tall (dashboard/loading/error)
+ * band; .fl-head-compact is the chart screen's ~44px single-row chrome band —
+ * the mockup's .fl-wrap.chart-active overrides, verbatim. */
+
+.fl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 18px;
+  flex-wrap: wrap;
+  padding: 8px 4px 18px;
+  position: relative;
+  flex: 0 0 auto;
+}
+/* The bottom hairline: a gradient that fades out toward both edges, so the
+ * header closes with a horizon line instead of a panel border. */
+.fl-head::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--hairline) 20%,
+    var(--hairline) 80%,
+    transparent
+  );
+}
+
+/* ── brand: sigil + wordmark + team subtitle ──────────────────────────────── */
+.fl-brand {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* The sigil — a glowing gold orb in a glass rounded-square housing. Pure CSS,
+ * no images. The orb + its glow are one of the TWO sanctioned golds up here
+ * (the other is the clock's T−N readout). Deliberately static — no pulse. */
+.fl-sigil {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-hi);
+  box-shadow:
+    0 0 20px -6px var(--gold),
+    var(--glass-inset);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.fl-sigil::after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 30%,
+    var(--sigil-core),
+    var(--gold-text) 55%,
+    var(--gold-deep)
+  );
+  box-shadow: 0 0 13px 2px var(--gold);
+}
+
+/* The wordmark keeps the vendored Michroma face (@font-face in app.css) at the
+ * mockup's mission-patch tracking. Warm-white text, never gold. */
+.fl-wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(17px, 2.4vw, 22px);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--text-primary);
+  text-shadow: var(--wordmark-glow);
+}
+/* The team-name subtitle — mono telemetry, bound to project.yaml in header.tsx. */
+.fl-head .fl-sub {
+  margin-top: 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-telemetry);
+}
+
+/* ── Dashboard | Chart pill tabs ──────────────────────────────────────────────
+ * A glass pill container; the active tab is a glass chip with the bright edge
+ * (the mockup's aria-selected treatment, keyed to our aria-pressed semantics). */
+.fl-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--track-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.fl-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 7px 18px;
+  border-radius: 8px;
+}
+.fl-tab:hover {
+  color: var(--text-primary);
+}
+.fl-tab[aria-pressed="true"] {
+  color: var(--text-primary);
+  background: var(--glass-bg);
+  border-color: var(--glass-border-hi);
+  box-shadow: var(--glass-inset);
+}
+
+/* ── right cluster: mission clock · Settings · mode toggle ────────────────── */
+.fl-topright {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.fl-clock {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--text-telemetry);
+  text-align: right;
+  line-height: 1.55;
+  padding-right: 14px;
+  border-right: 1px solid var(--hairline);
+}
+/* The T−N readout — the header's second sanctioned gold (approved in the
+ * mockup): gold-as-TEXT, so it clears both canvases (§2 a11y rule). */
+.fl-clock b {
+  color: var(--gold-text);
+  font-weight: 500;
+}
+@media (max-width: 760px) {
+  .fl-clock {
+    display: none;
+  }
+}
+
+/* Quiet glass pills — Settings and the mode toggle share one family. */
+.fl-hpill {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--glass-inset);
+}
+.fl-hpill:hover {
+  color: var(--text-primary);
+  border-color: var(--glass-border-hi);
+}
+
+/* The app-wide focus ring (app.css) stamps a 6px border-radius on any focused
+ * control; re-assert the pill/tab shapes at higher specificity so keyboard
+ * focus never squares them off. The ring itself still comes from the shared
+ * rule — same token, same pattern. */
+.fl-app .fl-hpill:focus-visible {
+  border-radius: 999px;
+}
+.fl-app .fl-tab:focus-visible {
+  border-radius: 8px;
+}
+
+/* Hover/active feel — transitions only behind reduced-motion, per the house
+ * rule (static is the truth). */
+@media (prefers-reduced-motion: no-preference) {
+  .fl-tab,
+  .fl-hpill {
+    transition:
+      color 140ms ease,
+      background 140ms ease,
+      border-color 140ms ease;
+  }
+}
+
+/* ── compact variant (chart screen) — the mockup's chart-active overrides ────
+ * Everything kept (sigil, wordmark + subtitle, tabs, clock, pills) but shrunk
+ * to a single ~44px chrome band so the chart owns the page. */
+.fl-head-compact {
+  flex-wrap: nowrap;
+  padding: 4px 4px 8px;
+}
+.fl-head-compact .fl-sigil {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+.fl-head-compact .fl-sigil::after {
+  width: 9px;
+  height: 9px;
+}
+.fl-head-compact .fl-wordmark {
+  font-size: 16px;
+}
+.fl-head-compact .fl-sub {
+  margin-top: 3px;
+  font-size: 9px;
+}
+.fl-head-compact .fl-tab {
+  padding: 5px 14px;
+}
+.fl-head-compact .fl-hpill {
+  padding: 6px 12px;
+}
+.fl-head-compact .fl-clock {
+  line-height: 1.35;
+}

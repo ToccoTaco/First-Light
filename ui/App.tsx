@@ -78,6 +78,7 @@ import {
   type Zoom,
 } from "./gantt-adapter";
 import { applyMode, otherMode, readMode, resolveMode, type Mode } from "./mode";
+import { Header, type Screen } from "./header";
 import { loadMeta, type Meta } from "../storage/meta";
 import {
   Dashboard,
@@ -145,8 +146,8 @@ function parseView(token: string | null): ChartView {
 }
 
 // ── screen persistence (Phase 4): Dashboard | Chart, dashboard is the landing ──
+// (the Screen type itself lives with the Header, ui/header.tsx)
 const SCREEN_KEY = "fl-screen";
-type Screen = "dashboard" | "chart";
 /** Parse a stored token to a Screen — anything unknown lands on the dashboard. */
 function parseScreen(token: string | null): Screen {
   return token === "chart" ? "chart" : "dashboard";
@@ -750,6 +751,7 @@ export default function App() {
       <div className="fl-app">
         <Header
           mode={mode}
+          variant="tall"
           onToggleMode={toggleMode}
           onOpenSettings={() => setSettingsOpen(true)}
         />
@@ -765,6 +767,7 @@ export default function App() {
       <div className="fl-app">
         <Header
           mode={mode}
+          variant="tall"
           onToggleMode={toggleMode}
           onOpenSettings={() => setSettingsOpen(true)}
         />
@@ -790,6 +793,8 @@ export default function App() {
         onScreen={onScreen}
         onToggleMode={toggleMode}
         onOpenSettings={() => setSettingsOpen(true)}
+        countdown={dashModel?.countdown ?? null}
+        variant={screen === "chart" ? "compact" : "tall"}
       />
       {screen === "dashboard" ? (
         // ── the landing view (Phase 4) — a thin render of the pure model ──────
@@ -901,86 +906,6 @@ export default function App() {
         />
       )}
     </div>
-  );
-}
-
-function Header({
-  project,
-  mode,
-  screen,
-  onScreen,
-  onToggleMode,
-  onOpenSettings,
-}: {
-  project?: ProjectData;
-  mode: Mode;
-  screen?: Screen; // omitted while loading / on error — no tabs then
-  onScreen?: (s: Screen) => void;
-  onToggleMode: () => void;
-  onOpenSettings: () => void;
-}) {
-  const target = otherMode(mode);
-  return (
-    <header className="fl-header">
-      {/* Living space background (2026-07-08): two parallax cloud/star layers
-          drifting at different speeds + a static left fade that keeps the
-          wordmark off the atmosphere. Motion is transform/opacity-only, long-
-          looped and reduced-motion-guarded (app.css); light mode carries its own
-          daytime-quiet tokens, so it breathes in both themes. */}
-      <div className="fl-atmo" aria-hidden="true">
-        <div className="fl-atmo-layer fl-atmo-clouds" />
-        <div className="fl-atmo-layer fl-atmo-stars" />
-        <div className="fl-atmo-fade" />
-      </div>
-      <div>
-        <h1>First Light</h1>
-        <div className="fl-sub">
-          {project ? project.team : "Notre Dame Experimental Propulsion"}
-        </div>
-      </div>
-      <div className="fl-header-actions">
-        {/* Phase 4: the two-view shell. Quiet segmented control — same inverted-
-            chip vocabulary as the toolbar segs, never gold. */}
-        {screen && onScreen && (
-          <div
-            className="fl-seg fl-screen-seg"
-            role="group"
-            aria-label="Screen"
-          >
-            <button
-              aria-pressed={screen === "dashboard"}
-              onClick={() => onScreen("dashboard")}
-            >
-              Dashboard
-            </button>
-            <button
-              aria-pressed={screen === "chart"}
-              onClick={() => onScreen("chart")}
-            >
-              Chart
-            </button>
-          </div>
-        )}
-        <button
-          type="button"
-          className="fl-mode-toggle"
-          onClick={onOpenSettings}
-          aria-label="Open settings"
-          title="GitHub repo + token for saving"
-        >
-          Settings
-        </button>
-        <button
-          type="button"
-          className="fl-mode-toggle"
-          onClick={onToggleMode}
-          aria-label={`Switch to ${target} mode`}
-          title={`Switch to ${target} mode`}
-        >
-          {mode === "dark" ? "☀ Light" : "☾ Dark"}
-        </button>
-      </div>
-    </header>
   );
 }
 
