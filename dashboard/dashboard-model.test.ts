@@ -9,6 +9,7 @@ import {
   computeBlocked,
   computeCountdown,
   computeCritical,
+  computeFlightPath,
   computeRollups,
   computeSlippage,
   computeStaleness,
@@ -127,6 +128,139 @@ describe("computeCountdown", () => {
     const sched = scheduleOf(tasks);
     expect(Object.keys(sched.tasks).length).toBe(0); // sanity: cycle → empty
     expect(computeCountdown(project(tasks), sched, NOW).kind).toBe("no-schedule");
+  });
+});
+
+// ── flight path (redesign · gate pipeline) ────────────────────────────────────
+
+/** A gate pinned to an exact date — flight-path fixtures want full control. */
+const pinnedGate = (id: string, start: string): Task =>
+  gate(id, [], { schedule: { mode: "pinned", start } });
+
+describe("computeFlightPath", () => {
+  it("labels gates cleared / next / projected, sorted by scheduled date", () => {
+    // Deliberately shuffled input order — the pipeline must sort by date.
+    const tasks = [
+      pinnedGate("gate.mrr", "2026-01-10"), // upcoming → next
+      pinnedGate("gate.pdr", "2025-12-01"), // past → cleared
+      pinnedGate("gate.first-flight", "2026-02-01"), // after next → projected
+      pinnedGate("gate.cdr", "2025-12-20"), // past → cleared
+    ];
+    const f = computeFlightPath(project(tasks), scheduleOf(tasks), NOW);
+    expect(f.gateCount).toBe(4);
+    expect(f.nodes.map((n) => [n.id, n.state])).toEqual([
+      ["gate.pdr", "cleared"],
+      ["gate.cdr", "cleared"],
+      ["gate.mrr", "next"],
+      ["gate.first-flight", "projected"],
+    ]);
+    // tMinusDays lives ONLY on the next node, and dates ride along.
+    expect(f.nodes.map((n) => n.tMinusDays)).toEqual([
+      undefined,
+      undefined,
+      9, // Jan 1 → Jan 10
+      undefined,
+    ]);
+    expect(f.nodes[2].dateISO).toBe("2026-01-10");
+    expect(f.nodes[2].name).toBe("gate.mrr");
+  });
+
+  it("a gate dated exactly today is next (T–0), never cleared", () => {
+    const tasks = [
+      pinnedGate("gate.today", NOW),
+      pinnedGate("gate.later", "2026-03-01"),
+    ];
+    const f = computeFlightPath(project(tasks), scheduleOf(tasks), NOW);
+    expect(f.nodes[0]).toMatchObject({
+      id: "gate.today",
+      state: "next",
+      tMinusDays: 0,
+    });
+    expect(f.nodes[1].state).toBe("projected");
+  });
+
+  it("no gates → empty pipeline (tasks-without-gates and fully empty alike)", () => {
+    const tasks = [auto("engines.a", 5)];
+    expect(computeFlightPath(project(tasks), scheduleOf(tasks), NOW)).toEqual({
+      nodes: [],
+      gateCount: 0,
+    });
+    expect(computeFlightPath(project([]), scheduleOf([]), NOW)).toEqual({
+      nodes: [],
+      gateCount: 0,
+    });
+  });
+
+  it("all gates passed → last cleared + final still present, no next node", () => {
+    const tasks = [
+      pinnedGate("gate.pdr", "2025-10-01"),
+      pinnedGate("gate.cdr", "2025-11-01"),
+      pinnedGate("gate.first-flight", "2025-12-01"),
+    ];
+    const f = computeFlightPath(project(tasks), scheduleOf(tasks), NOW);
+    expect(f.nodes.map((n) => n.state)).toEqual(["cleared", "cleared", "cleared"]);
+    expect(f.nodes.some((n) => n.state === "next")).toBe(false);
+    expect(f.nodes[f.nodes.length - 1].id).toBe("gate.first-flight");
+  });
+
+  it(">5 gates compacts to ≤5 — last cleared · next · following · ALWAYS final — with the true gateCount", () => {
+    const tasks = [
+      pinnedGate("g1", "2025-11-01"), // cleared (dropped — not the most recent)
+      pinnedGate("g2", "2025-12-01"), // cleared (kept — most recent cleared)
+      pinnedGate("g3", "2026-01-10"), // next
+      pinnedGate("g4", "2026-02-01"), // following
+      pinnedGate("g5", "2026-03-01"), // following
+      pinnedGate("g6", "2026-04-01"), // dropped — the cap is 5
+      pinnedGate("g7", "2026-05-01"), // final — always kept
+    ];
+    const f = computeFlightPath(project(tasks), scheduleOf(tasks), NOW);
+    expect(f.gateCount).toBe(7); // the TRUE total, not the shown count
+    expect(f.nodes.map((n) => n.id)).toEqual(["g2", "g3", "g4", "g5", "g7"]);
+    expect(f.nodes.map((n) => n.state)).toEqual([
+      "cleared",
+      "next",
+      "projected",
+      "projected",
+      "projected",
+    ]);
+  });
+
+  it("tMinusDays on the next node equals computeCountdown's days for the same inputs", () => {
+    // Auto-scheduled chain — the same fixture shape the countdown tests use.
+    const tasks = [auto("engines.a", 5), gate("gate.first-flight", ["engines.a"])];
+    const p = project(tasks);
+    const sched = scheduleOf(tasks);
+    const c = computeCountdown(p, sched, NOW);
+    if (c.kind !== "countdown") throw new Error("expected countdown");
+    const f = computeFlightPath(p, sched, NOW);
+    const next = f.nodes.find((n) => n.state === "next")!;
+    expect(next.id).toBe(c.gateId);
+    expect(next.dateISO).toBe(c.gateDateISO);
+    expect(next.tMinusDays).toBe(c.days);
+  });
+
+  it("cycle blanks the schedule → no nodes, but gateCount still tells the truth", () => {
+    const tasks = [
+      auto("engines.a", 5, { dependsOn: ["engines.b"] }),
+      auto("engines.b", 5, { dependsOn: ["engines.a"] }),
+      gate("gate.first-flight", ["engines.a"]),
+    ];
+    const sched = scheduleOf(tasks);
+    expect(Object.keys(sched.tasks).length).toBe(0); // sanity: cycle → empty
+    const f = computeFlightPath(project(tasks), sched, NOW);
+    expect(f.nodes).toEqual([]); // no dates → nothing to place on a timeline
+    expect(f.gateCount).toBe(1); // distinguishable from "no gates on the board"
+  });
+
+  it("buildDashboard wires the flight path into the model", () => {
+    const tasks = [auto("engines.a", 5), gate("gate.first-flight", ["engines.a"])];
+    const model = buildDashboard(project(tasks), scheduleOf(tasks), null, NOW);
+    expect(model.flightPath.gateCount).toBe(1);
+    expect(model.flightPath.nodes[0]).toMatchObject({
+      id: "gate.first-flight",
+      state: "next",
+      tMinusDays: 5,
+    });
   });
 });
 

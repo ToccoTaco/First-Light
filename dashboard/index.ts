@@ -9,6 +9,9 @@ export { Dashboard } from "./Dashboard";
 export {
   buildDashboard,
   baselineScheduleFromMeta,
+  computeFlightPath,
   dayDiff,
   type DashboardModel,
+  type FlightPathModel,
+  type FlightPathNode,
 } from "./dashboard-model";

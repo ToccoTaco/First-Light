@@ -61,6 +61,31 @@ export type CountdownModel =
   | { kind: "all-passed" } // gates exist, but every one is behind us
   | { kind: "no-schedule" };
 
+/**
+ * One node of the flight-path pipeline (PDR → CDR → … → First Flight): a spine
+ * gate with where it sits relative to today. `cleared` = scheduled date strictly
+ * before today (status never enters into it — same skip semantics as the
+ * countdown's next-gate rule); `next` = exactly the gate the countdown picks;
+ * `projected` = every gate after next.
+ */
+export interface FlightPathNode {
+  id: string;
+  name: string;
+  dateISO: ISODate | null; // null only when the schedule carries no date for it
+  state: "cleared" | "next" | "projected";
+  tMinusDays?: number; // set ONLY on the `next` node; equals the countdown's days
+}
+
+/**
+ * The compacted gate pipeline. `nodes` holds at most 5 entries (most recent
+ * cleared · next · the following gate(s) · ALWAYS the final gate) in scheduled
+ * order; `gateCount` reports the TRUE total so the UI can say "3 of 8 shown".
+ */
+export interface FlightPathModel {
+  nodes: FlightPathNode[];
+  gateCount: number;
+}
+
 /** One squad's (or the overall) progress: duration-weighted % + a counts line. */
 export interface Rollup {
   percent: number; // 0..100, duration-weighted (done=100, milestones weight 0)
@@ -140,6 +165,7 @@ export type StalenessModel =
 /** Everything the landing view draws — one pure object built from the inputs. */
 export interface DashboardModel {
   countdown: CountdownModel;
+  flightPath: FlightPathModel;
   rollups: RollupsModel;
   slippage: SlippageModel;
   critical: CriticalModel | null; // null when a cycle blanked the schedule
@@ -218,6 +244,21 @@ function rollupOf(leaves: Task[]): Rollup {
 
 // ── countdown (§9 · deliverable 1) ───────────────────────────────────────────
 
+/**
+ * The spine gates paired with their scheduled date, in INPUT (file) order — the
+ * one shared gate list behind both the countdown and the flight path, so "which
+ * gate is next" can never drift between the two. Gates the schedule carries no
+ * entry for are omitted (only happens when a cycle blanked the schedule).
+ */
+function scheduledGateDates(
+  project: ProjectData,
+  schedule: ScheduleResult,
+): { id: string; dateISO: ISODate }[] {
+  return project.tasks
+    .filter((t) => t.gate !== undefined && schedule.tasks[t.id])
+    .map((t) => ({ id: t.id, dateISO: schedule.tasks[t.id].earliestStart }));
+}
+
 export function computeCountdown(
   project: ProjectData,
   schedule: ScheduleResult,
@@ -233,9 +274,7 @@ export function computeCountdown(
   // the copy differs so the hero reads honestly.
   const gateTasks = project.tasks.filter((t) => t.gate !== undefined);
   if (gateTasks.length === 0) return { kind: "no-gates" };
-  const gates = gateTasks
-    .filter((t) => schedule.tasks[t.id])
-    .map((t) => ({ id: t.id, dateISO: schedule.tasks[t.id].earliestStart }));
+  const gates = scheduledGateDates(project, schedule);
   const nextId = nextGateId(gates, today);
   if (!nextId) return { kind: "all-passed" }; // every gate is in the past
   const gate = project.tasks.find((t) => t.id === nextId)!;
@@ -247,6 +286,88 @@ export function computeCountdown(
     gateName: gate.name,
     gateDateISO: dateISO,
   };
+}
+
+// ── flight path (redesign · the gate pipeline) ───────────────────────────────
+
+/** The pipeline never shows more than this many nodes — beyond it, compact. */
+const FLIGHT_PATH_MAX = 5;
+
+/**
+ * The flight-path pipeline: every spine gate, sorted by scheduled date (ties
+ * keep input order), each labelled cleared / next / projected. `next` is decided
+ * by the SAME `nextGateId` rule as the countdown and the chart's gold glow, and
+ * the next node's `tMinusDays` equals the countdown's day count by construction.
+ *
+ * Compaction: with more than 5 gates, keep the most recent cleared gate, the
+ * next gate, the gate(s) right after it, and ALWAYS the final gate — 5 nodes at
+ * most, with `gateCount` still reporting the true total.
+ *
+ * Degradation mirrors the countdown: a cycle-blanked schedule yields no nodes
+ * (there are no dates to put on a timeline) but keeps the true `gateCount`, so
+ * the state is distinguishable from "no gates on the board" ({ nodes: [], 0 }).
+ */
+export function computeFlightPath(
+  project: ProjectData,
+  schedule: ScheduleResult,
+  today: ISODate,
+): FlightPathModel {
+  const gateTasks = project.tasks.filter((t) => t.gate !== undefined);
+  if (project.tasks.length > 0 && Object.keys(schedule.tasks).length === 0) {
+    return { nodes: [], gateCount: gateTasks.length }; // blanked — hero yields
+  }
+  if (gateTasks.length === 0) return { nodes: [], gateCount: 0 };
+
+  const nameById = new Map(project.tasks.map((t) => [t.id, t.name]));
+  const gates = scheduledGateDates(project, schedule);
+  const nextId = nextGateId(gates, today); // THE shared next-gate rule
+
+  // Scheduled-date order; Array.prototype.sort is stable, so equal dates keep
+  // input (file) order — the same tiebreak `nextGateId` itself applies.
+  const sorted = [...gates].sort((a, b) =>
+    a.dateISO < b.dateISO ? -1 : a.dateISO > b.dateISO ? 1 : 0,
+  );
+
+  const nodes: FlightPathNode[] = sorted.map((g) => {
+    const name = nameById.get(g.id) ?? g.id;
+    if (g.id === nextId) {
+      return {
+        id: g.id,
+        name,
+        dateISO: g.dateISO,
+        state: "next",
+        tMinusDays: dayDiff(today, g.dateISO),
+      };
+    }
+    // Strictly past → cleared (status never enters into it); everything at or
+    // beyond today that isn't THE next gate sorts after it → projected.
+    const state = g.dateISO < today ? "cleared" : "projected";
+    return { id: g.id, name, dateISO: g.dateISO, state };
+  });
+
+  const gateCount = nodes.length;
+  if (gateCount <= FLIGHT_PATH_MAX) return { nodes, gateCount };
+
+  // Compaction. Kept indices, in scheduled order: most recent cleared · next ·
+  // the following gate(s) up to the cap · always the final gate.
+  const keep = new Set<number>();
+  const nextIdx = nodes.findIndex((n) => n.state === "next");
+  let lastCleared = -1;
+  for (let i = 0; i < nodes.length; i++) {
+    if (nodes[i].state === "cleared") lastCleared = i;
+  }
+  if (lastCleared >= 0) keep.add(lastCleared);
+  if (nextIdx >= 0) keep.add(nextIdx);
+  keep.add(nodes.length - 1); // the destination gate ALWAYS survives
+  for (
+    let i = nextIdx + 1;
+    nextIdx >= 0 && i < nodes.length && keep.size < FLIGHT_PATH_MAX;
+    i++
+  ) {
+    keep.add(i);
+  }
+  const compacted = [...keep].sort((a, b) => a - b).map((i) => nodes[i]);
+  return { nodes: compacted, gateCount };
 }
 
 // ── rollups (§9 · deliverable 2) ─────────────────────────────────────────────
@@ -489,6 +610,7 @@ export function buildDashboard(
   const baseline = baselineScheduleFromMeta(meta, today);
   return {
     countdown: computeCountdown(project, schedule, today),
+    flightPath: computeFlightPath(project, schedule, today),
     rollups: computeRollups(project),
     slippage: computeSlippage(schedule, baseline, project),
     critical: computeCritical(schedule, project),

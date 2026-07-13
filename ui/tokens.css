@@ -17,7 +17,7 @@
 /* ── DARK (default + identity) ─────────────────────────────────────────────── */
 :root,
 :root[data-mode="dark"] {
-  --canvas: #08111f; /* §2 page canvas (deep-space navy) */
+  --canvas: #060d18; /* §2 page canvas (deep space — retuned to Concept 3) */
   --surface: #0c2340; /* §2 panel / card surface */
   --surface-raised: #123056; /* §2 raised surface (tooltip, hover, stripe) */
   --border-hair: #1c3252; /* §2 hairline / border */
@@ -54,6 +54,27 @@
    * navy per the spec identity — this only relieves, it does not repaint. */
   --grid-stripe: #14283e; /* odd timeline/grid row stripe (quiet, near-surface) */
 
+  /* GLASS family — lifted from the approved Concept 3 "Synthesis" mockup. */
+  --glass-bg: linear-gradient(
+    158deg,
+    rgba(20, 44, 78, 0.6),
+    rgba(9, 22, 42, 0.66)
+  ); /* frosted glass panel fill */
+  --glass-border: rgba(128, 176, 235, 0.2); /* glass panel edge */
+  --glass-border-hi: rgba(150, 196, 255, 0.48); /* glass edge, hover / active */
+  --glass-glow: 0 8px 40px -12px rgba(4, 10, 22, 0.9); /* panel resting shadow */
+  --glass-glow-hover:
+    0 16px 52px -18px rgba(8, 20, 44, 0.95),
+    0 0 22px -8px rgba(110, 168, 230, 0.3); /* hover lift + cool halo */
+  --glass-inset: inset 0 1px 0 rgba(180, 214, 255, 0.1); /* top inner bevel */
+  --track-bg: rgba(6, 16, 32, 0.7); /* meter / progress track well */
+  --hairline: rgba(128, 176, 235, 0.14); /* cool translucent divider */
+  --node-line: rgba(128, 176, 235, 0.26); /* flight-path connector line */
+  --canvas-deep: #04070f; /* deepest space (vignette floor, page edges) */
+  --gold-deep: #a37c06; /* gold gradient's dark stop */
+  --done-glow: #16c974; /* done accent glow (Irish-green highlight) */
+  --blocked-core: #d76b5f; /* blocked accent core (dot / pulse) */
+
   /* Implied-but-unnamed tokens (documented per the slice brief): */
   /* §7 guess-hatch stripe pair — RETUNED off §7's original blue-on-blue spec to a
    * cool-neutral light-line/dark-gap pair, so the hatch stays CLEARLY visible on
@@ -62,29 +83,33 @@
   --hatch-a: #c8cfda; /* guess-hatch light line (cool near-white) */
   --hatch-b: #1e2e44; /* guess-hatch dark gap (dark slate) */
 
-  /* §5 nebula — the two-corner cloud recipe + gold-dust whisper, kept as a token
-   * so the literal rgba values live in this (the only literal-bearing) file. The
-   * page canvas paints this behind SOLID surface panels, so it only shows in the
-   * gutters/margins and never behind text.
-   *
-   * NOTE — peaks below EXCEED §5's ~0.16 guardrail by explicit user direction
-   * (2026-07-05: "make the nebula effect a bit more pronounced, I can't really
-   * tell it's there"). Bumped 0.14/0.16/0.05 → 0.20/0.22/0.07 so the gutters read
-   * as nebula on a normal monitor, not just in pixel math. Still §5 in spirit:
-   * felt in the margins, clouds pushed to corners, never behind text (panels stay
-   * solid surface on top). */
+  /* §5 nebula — RETUNED to the Concept 3 mockup's four-cloud page recipe
+   * (violet upper-left, blue lower-right, indigo lower-left, gold whisper),
+   * kept as a token so the literal rgba values live in this (the only
+   * literal-bearing) file. The page canvas paints this behind SOLID surface
+   * panels, so it only shows in the gutters/margins and never behind text. */
   --nebula:
-    radial-gradient(60% 50% at 12% 8%, rgba(83, 74, 183, 0.2), transparent 60%),
+    radial-gradient(
+      58% 48% at 10% 6%,
+      rgba(83, 74, 183, 0.22),
+      transparent 60%
+    ),
     /* violet cloud, upper-left */
     radial-gradient(
-        55% 45% at 88% 92%,
-        rgba(28, 79, 143, 0.22),
-        transparent 60%
+        54% 46% at 90% 94%,
+        rgba(28, 79, 143, 0.24),
+        transparent 62%
       ),
     /* blue cloud, lower-right */
     radial-gradient(
-        45% 40% at 72% 22%,
-        rgba(201, 151, 0, 0.07),
+        46% 40% at 22% 84%,
+        rgba(56, 60, 150, 0.18),
+        transparent 58%
+      ),
+    /* indigo depth-cloud, lower-left */
+    radial-gradient(
+        34% 30% at 76% 16%,
+        rgba(201, 151, 0, 0.05),
         transparent 55%
       ); /* gold dust, whisper */
 
@@ -93,32 +118,35 @@
    * information there and can be stylized more … a nebula effect with stars and
    * such." So the header gets ITS OWN richer nebula, stronger than the canvas,
    * composed for a wide short band: violet/blue/gold clouds pushed to the corners
-   * and empty center-right (peaks ~0.25–0.32), with the LEFT edge left calm so
-   * "First Light" + subtitle keep full contrast (see the left-edge fade wired in
-   * app.css). These peaks deliberately exceed §5's ~0.16 guardrail — this panel
-   * is the sanctioned showcase, the CHART stays quiet. */
+   * and empty center-right, with the LEFT edge left calm so "First Light" +
+   * subtitle keep full contrast (see the left-edge fade wired in app.css).
+   * RETUNED a touch quieter/cooler toward the Concept 3 recipe (peaks
+   * ~0.26–0.28, gold 0.10) — still the sanctioned showcase, the CHART stays
+   * quiet. */
   --nebula-header:
     radial-gradient(
       70% 150% at 34% 0%,
-      rgba(83, 74, 183, 0.3),
+      rgba(83, 74, 183, 0.26),
       transparent 72%
     ),
     /* violet cloud, upper — off the far-left title */
     radial-gradient(
         60% 160% at 84% 100%,
-        rgba(28, 79, 143, 0.32),
+        rgba(28, 79, 143, 0.28),
         transparent 72%
       ),
     /* blue cloud, lower-right */
     radial-gradient(
         48% 150% at 60% 26%,
-        rgba(201, 151, 0, 0.16),
+        rgba(201, 151, 0, 0.1),
         transparent 68%
       ); /* gold dust, richer than canvas but still atmosphere */
 
-  /* §5 flourish — the SPARSE starfield for the header band (dark mode only).
-   * ~a dozen 1px white dots at 20–35% opacity + three brighter 1.5–2px stars,
-   * each with a faint soft glow, scattered organically (px positions, not a
+  /* §5 flourish — the starfield for the header band (dark mode only).
+   * RETUNED to the Concept 3 recipe: DENSER and QUIETER — more dots, each
+   * dimmer, in the mockup's cool star-white rgba(210,226,255,…) instead of
+   * pure white. ~Nineteen 1px dots at 14–24% + three brighter 1.5–1.6px stars
+   * (each with a faint soft glow), scattered organically (px positions, not a
    * grid) and kept toward the empty center/right so they never crowd the title.
    * Pure layered radial-gradients — NO canvas element, NO deps, NO motion (there
    * is deliberately no animation, so prefers-reduced-motion needs no handling).
@@ -127,94 +155,129 @@
     /* three brighter stars (sharp core) */
     radial-gradient(
       1.6px 1.6px at 618px 24px,
-      rgba(255, 255, 255, 0.72),
+      rgba(210, 226, 255, 0.55),
       transparent 60%
     ),
     radial-gradient(
       1.6px 1.6px at 1082px 44px,
-      rgba(255, 255, 255, 0.68),
+      rgba(210, 226, 255, 0.5),
       transparent 60%
     ),
     radial-gradient(
       1.5px 1.5px at 884px 19px,
-      rgba(255, 255, 255, 0.6),
+      rgba(210, 226, 255, 0.45),
       transparent 60%
     ),
     /* their faint soft glow (larger, dim) */
     radial-gradient(
         4px 4px at 618px 24px,
-        rgba(255, 255, 255, 0.18),
+        rgba(210, 226, 255, 0.13),
         transparent 70%
       ),
     radial-gradient(
       4px 4px at 1082px 44px,
-      rgba(255, 255, 255, 0.16),
+      rgba(210, 226, 255, 0.12),
       transparent 70%
     ),
     radial-gradient(
       3.5px 3.5px at 884px 19px,
-      rgba(255, 255, 255, 0.14),
+      rgba(210, 226, 255, 0.1),
       transparent 70%
     ),
-    /* ~a dozen dim 1px dots */
+    /* ~nineteen dim 1px dots (denser, quieter) */
     radial-gradient(
-        1px 1px at 232px 15px,
-        rgba(255, 255, 255, 0.3),
+        1px 1px at 150px 33px,
+        rgba(210, 226, 255, 0.16),
         transparent 60%
       ),
     radial-gradient(
+      1px 1px at 232px 15px,
+      rgba(210, 226, 255, 0.22),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 298px 52px,
+      rgba(210, 226, 255, 0.14),
+      transparent 60%
+    ),
+    radial-gradient(
       1px 1px at 352px 41px,
-      rgba(255, 255, 255, 0.26),
+      rgba(210, 226, 255, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 418px 9px,
+      rgba(210, 226, 255, 0.18),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 470px 22px,
-      rgba(255, 255, 255, 0.32),
+      rgba(210, 226, 255, 0.24),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 566px 50px,
-      rgba(255, 255, 255, 0.24),
+      rgba(210, 226, 255, 0.16),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 664px 44px,
+      rgba(210, 226, 255, 0.15),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 706px 12px,
-      rgba(255, 255, 255, 0.3),
+      rgba(210, 226, 255, 0.22),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 792px 34px,
-      rgba(255, 255, 255, 0.22),
+      rgba(210, 226, 255, 0.15),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 858px 55px,
+      rgba(210, 226, 255, 0.14),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 946px 47px,
-      rgba(255, 255, 255, 0.28),
+      rgba(210, 226, 255, 0.2),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1024px 17px,
-      rgba(255, 255, 255, 0.32),
+      rgba(210, 226, 255, 0.24),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1168px 39px,
-      rgba(255, 255, 255, 0.24),
+      rgba(210, 226, 255, 0.16),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 1214px 12px,
+      rgba(210, 226, 255, 0.17),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1268px 27px,
-      rgba(255, 255, 255, 0.3),
+      rgba(210, 226, 255, 0.22),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1392px 50px,
-      rgba(255, 255, 255, 0.22),
+      rgba(210, 226, 255, 0.15),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 1444px 42px,
+      rgba(210, 226, 255, 0.16),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1476px 16px,
-      rgba(255, 255, 255, 0.28),
+      rgba(210, 226, 255, 0.2),
       transparent 60%
     );
   /* §5 flourish — the DASHBOARD-canvas atmosphere (dark mode, aesthetic pass
@@ -230,19 +293,17 @@
    * raised ~0.15/0.16 → 0.20/0.22, plus a second violet depth-cloud low-center
    * and a whisper of gold dust upper-right — same vocabulary, more presence.
    * Tiles stay solid --surface on top, so text contrast is untouched.
-   * Light mode → its own barely-there daytime wash (see the light set). */
+   * RETUNED to the Concept 3 cloud palette (indigo hue 56,60,150; violet/blue
+   * peaks nudged to the mockup's 0.22/0.20). Light mode → its own daytime wash
+   * (see the light set). */
   --nebula-dash:
-    radial-gradient(50% 55% at 6% 4%, rgba(83, 74, 183, 0.2), transparent 62%),
+    radial-gradient(50% 55% at 6% 4%, rgba(83, 74, 183, 0.22), transparent 62%),
     /* violet cloud, upper-left */
-    radial-gradient(
-        48% 52% at 96% 20%,
-        rgba(28, 79, 143, 0.19),
-        transparent 60%
-      ),
+    radial-gradient(48% 52% at 96% 20%, rgba(28, 79, 143, 0.2), transparent 60%),
     /* blue cloud, upper-right */
     radial-gradient(
         60% 55% at 88% 98%,
-        rgba(45, 60, 150, 0.22),
+        rgba(56, 60, 150, 0.22),
         transparent 62%
       ),
     /* deep-indigo cloud, lower-right */
@@ -254,7 +315,7 @@
     /* blue cloud, lower-left */
     radial-gradient(
         55% 40% at 46% 104%,
-        rgba(83, 74, 183, 0.1),
+        rgba(83, 74, 183, 0.12),
         transparent 65%
       ),
     /* violet depth-cloud, low-center (the second layer of depth) */
@@ -262,201 +323,256 @@
 
   /* A soft vignette at the DASHBOARD canvas edges (dark only) — the gutters
    * darken very slightly toward the frame, which deepens the space without
-   * touching any tile. Painted with the dash layers on the same fixed ::before. */
+   * touching any tile. Painted with the dash layers on the same fixed ::before.
+   * Floor retuned toward --canvas-deep (Concept 3's deepest space). */
   --dash-vignette: radial-gradient(
     130% 120% at 50% 42%,
     transparent 58%,
-    rgba(3, 8, 17, 0.42) 100%
+    rgba(4, 7, 15, 0.48) 100%
   );
 
   /* A second, SMALLER star layer for the dashboard gutters (dark only): a few
    * 0.8–2px stars at other depths than --starfield-dash. It lives on its own
    * fixed ::after so it can carry the ultra-low-amplitude twinkle (app.css,
-   * reduced-motion-guarded; static viewers see it still, at rest opacity). */
+   * reduced-motion-guarded; static viewers see it still, at rest opacity).
+   * RETUNED to Concept 3: denser, quieter, cool star-white. */
   --starfield-dash2:
     radial-gradient(
       2px 2px at 300px 80px,
-      rgba(255, 255, 255, 0.4),
+      rgba(210, 226, 255, 0.34),
       transparent 60%
     ),
     radial-gradient(
       5px 5px at 300px 80px,
-      rgba(255, 255, 255, 0.12),
+      rgba(210, 226, 255, 0.11),
       transparent 70%
     ),
     radial-gradient(
       1.4px 1.4px at 1240px 900px,
-      rgba(255, 255, 255, 0.36),
+      rgba(210, 226, 255, 0.3),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 440px 240px,
+      rgba(210, 226, 255, 0.16),
       transparent 60%
     ),
     radial-gradient(
       0.8px 0.8px at 520px 620px,
-      rgba(255, 255, 255, 0.24),
+      rgba(210, 226, 255, 0.17),
+      transparent 60%
+    ),
+    radial-gradient(
+      0.8px 0.8px at 1050px 760px,
+      rgba(210, 226, 255, 0.14),
       transparent 60%
     ),
     radial-gradient(
       0.8px 0.8px at 1360px 180px,
-      rgba(255, 255, 255, 0.26),
+      rgba(210, 226, 255, 0.18),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 180px 940px,
-      rgba(255, 255, 255, 0.22),
+      rgba(210, 226, 255, 0.15),
       transparent 60%
     ),
     radial-gradient(
       0.8px 0.8px at 860px 40px,
-      rgba(255, 255, 255, 0.2),
+      rgba(210, 226, 255, 0.14),
       transparent 60%
     ),
     radial-gradient(
       1.2px 1.2px at 1600px 460px,
-      rgba(255, 255, 255, 0.3),
+      rgba(210, 226, 255, 0.22),
       transparent 60%
     );
 
   /* §5 flourish — a SPARSE starfield extended into the dashboard gutters (dark
-   * only). Dozens, not hundreds: ~2 dozen 1px dots + a handful of brighter 1.5px
-   * stars, scattered across a 1600×1000 field (px, not a grid) and pushed toward
-   * the margins/corners so they land in the gutters between tiles, never dense.
-   * Pure layered radials — no canvas, no deps. The slow drift (dashboard.css,
-   * reduced-motion-guarded) moves this whole layer, stars and clouds together. */
+   * only). RETUNED to Concept 3: denser and quieter — more dots, each dimmer,
+   * in cool star-white. ~Two-dozen-plus 1px dots (12–24%) + a handful of
+   * brighter 1.5px stars, scattered across a 1600×1000 field (px, not a grid)
+   * and pushed toward the margins/corners so they land in the gutters between
+   * tiles, never dense. Pure layered radials — no canvas, no deps. The slow
+   * drift (dashboard.css, reduced-motion-guarded) moves this whole layer,
+   * stars and clouds together. */
   --starfield-dash:
     /* a few brighter stars */
     radial-gradient(
       1.5px 1.5px at 40px 120px,
-      rgba(255, 255, 255, 0.5),
+      rgba(210, 226, 255, 0.42),
       transparent 60%
     ),
     radial-gradient(
       1.5px 1.5px at 1560px 80px,
-      rgba(255, 255, 255, 0.5),
+      rgba(210, 226, 255, 0.4),
       transparent 60%
     ),
     radial-gradient(
       1.5px 1.5px at 1500px 520px,
-      rgba(255, 255, 255, 0.44),
+      rgba(210, 226, 255, 0.36),
       transparent 60%
     ),
     radial-gradient(
       1.5px 1.5px at 120px 640px,
-      rgba(255, 255, 255, 0.42),
+      rgba(210, 226, 255, 0.34),
       transparent 60%
     ),
-    /* ~two dozen dim 1px dots, kept to the margins */
+    /* the dim 1px dots, kept to the margins (denser, quieter) */
     radial-gradient(
         1px 1px at 80px 60px,
-        rgba(255, 255, 255, 0.32),
+        rgba(210, 226, 255, 0.24),
         transparent 60%
       ),
     radial-gradient(
+      1px 1px at 240px 30px,
+      rgba(210, 226, 255, 0.16),
+      transparent 60%
+    ),
+    radial-gradient(
       1px 1px at 210px 200px,
-      rgba(255, 255, 255, 0.22),
+      rgba(210, 226, 255, 0.15),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 340px 130px,
+      rgba(210, 226, 255, 0.14),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 60px 340px,
-      rgba(255, 255, 255, 0.28),
+      rgba(210, 226, 255, 0.2),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 150px 470px,
-      rgba(255, 255, 255, 0.2),
+      rgba(210, 226, 255, 0.13),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 30px 560px,
-      rgba(255, 255, 255, 0.26),
+      rgba(210, 226, 255, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 40px 760px,
+      rgba(210, 226, 255, 0.15),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 260px 720px,
-      rgba(255, 255, 255, 0.22),
+      rgba(210, 226, 255, 0.15),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 90px 860px,
-      rgba(255, 255, 255, 0.28),
+      rgba(210, 226, 255, 0.2),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1580px 240px,
-      rgba(255, 255, 255, 0.3),
+      rgba(210, 226, 255, 0.22),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 1500px 140px,
+      rgba(210, 226, 255, 0.17),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1460px 360px,
-      rgba(255, 255, 255, 0.22),
+      rgba(210, 226, 255, 0.15),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1540px 700px,
-      rgba(255, 255, 255, 0.26),
+      rgba(210, 226, 255, 0.18),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1420px 840px,
-      rgba(255, 255, 255, 0.2),
+      rgba(210, 226, 255, 0.13),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 1360px 950px,
+      rgba(210, 226, 255, 0.13),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1600px 960px,
-      rgba(255, 255, 255, 0.24),
+      rgba(210, 226, 255, 0.16),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 380px 900px,
-      rgba(255, 255, 255, 0.2),
+      rgba(210, 226, 255, 0.13),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 520px 880px,
+      rgba(210, 226, 255, 0.16),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 700px 960px,
-      rgba(255, 255, 255, 0.22),
+      rgba(210, 226, 255, 0.15),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 940px 980px,
+      rgba(210, 226, 255, 0.13),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1080px 940px,
-      rgba(255, 255, 255, 0.2),
+      rgba(210, 226, 255, 0.13),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 1300px 40px,
-      rgba(255, 255, 255, 0.26),
+      rgba(210, 226, 255, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 1180px 60px,
+      rgba(210, 226, 255, 0.15),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 980px 30px,
-      rgba(255, 255, 255, 0.2),
+      rgba(210, 226, 255, 0.14),
       transparent 60%
     ),
     radial-gradient(
       1px 1px at 620px 50px,
-      rgba(255, 255, 255, 0.22),
+      rgba(210, 226, 255, 0.15),
       transparent 60%
     );
 
   /* §5 flourish — the DASHBOARD HERO band (T-minus), split off the header
    * tokens (aesthetic pass 2026-07-07) so the hero can lean further into the
    * atmosphere than the title block WITHOUT touching the chart screen's header.
-   * Dark: the header recipe with a step more presence (peaks ~0.34/0.36/0.18),
-   * composed for the tall countdown band; the countdown itself sits over the
-   * calm center so its contrast never moves. */
+   * Dark: the header recipe with a step more presence, composed for the tall
+   * countdown band; the countdown itself sits over the calm center so its
+   * contrast never moves. RETUNED a touch quieter/cooler toward Concept 3
+   * (peaks ~0.30/0.32, gold 0.12) — still the richest band on the page. */
   --nebula-hero:
     radial-gradient(
       70% 130% at 22% 0%,
-      rgba(83, 74, 183, 0.34),
+      rgba(83, 74, 183, 0.3),
       transparent 70%
     ),
     /* violet cloud, upper-left */
     radial-gradient(
         62% 140% at 88% 100%,
-        rgba(28, 79, 143, 0.36),
+        rgba(28, 79, 143, 0.32),
         transparent 70%
       ),
     /* blue cloud, lower-right */
     radial-gradient(
         46% 120% at 68% 18%,
-        rgba(201, 151, 0, 0.18),
+        rgba(201, 151, 0, 0.12),
         transparent 66%
       ); /* gold dust — richer here than anywhere, still atmosphere */
   --starfield-hero: var(--starfield); /* the hero shares the header starfield */
@@ -528,7 +644,7 @@
 
 /* ── LIGHT (daytime / projector / print) ───────────────────────────────────── */
 :root[data-mode="light"] {
-  --canvas: #f6f4ee; /* §2 page canvas */
+  --canvas: #dfe9f6; /* §2 page canvas (daytime sky — retuned to Concept 3) */
   --surface: #ffffff; /* §2 panel / card surface */
   --surface-raised: #ffffff; /* §2 raised surface */
   --border-hair: #d9dee8; /* §2 hairline / border */
@@ -554,6 +670,28 @@
   --neutral-bar: #8a94a3; /* not-started bar fill */
   --neutral-edge: #6c7684; /* its border */
   --grid-stripe: #eef0f4; /* odd-row stripe, desaturated (near-neutral) */
+
+  /* GLASS family — lifted from the Concept 3 mockup's light ("daytime launch
+   * pad") block. */
+  --glass-bg: linear-gradient(
+    158deg,
+    rgba(255, 255, 255, 0.8),
+    rgba(238, 245, 255, 0.68)
+  ); /* frosted glass panel fill */
+  --glass-border: rgba(40, 90, 150, 0.2); /* glass panel edge */
+  --glass-border-hi: rgba(30, 80, 150, 0.4); /* glass edge, hover / active */
+  --glass-glow: 0 10px 34px -16px rgba(30, 70, 130, 0.32); /* panel resting shadow */
+  --glass-glow-hover:
+    0 18px 48px -20px rgba(24, 60, 120, 0.4),
+    0 0 20px -8px rgba(90, 150, 220, 0.35); /* hover lift + cool halo */
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.85); /* top inner bevel */
+  --track-bg: rgba(210, 224, 242, 0.85); /* meter / progress track well */
+  --hairline: rgba(40, 90, 150, 0.16); /* cool translucent divider */
+  --node-line: rgba(40, 90, 150, 0.3); /* flight-path connector line */
+  --canvas-deep: #cfe0f2; /* deepest sky (page edges, vignette floor) */
+  --gold-deep: #7d6002; /* gold gradient's dark stop */
+  --done-glow: #14a457; /* done accent glow (Irish-green highlight) */
+  --blocked-core: #c65142; /* blocked accent core (dot / pulse) */
 
   /* Guess-hatch pair, RETUNED for light mode: dark slate line on a near-white
    * gap — grayscale contrast so it stays visible over gray/gold/navy/receded
@@ -590,55 +728,118 @@
   --scrollbar-thumb: #b3bccb; /* mid slate-gray thumb — clearly visible on white */
   --scrollbar-thumb-hover: #97a2b4; /* darker on hover */
 
-  /* §5 nebula, light mode: the CHART screen's nebula stands down. Of §5's two
-   * sanctioned options (absent, or a ~0.03 cool wash) the chart takes the
-   * QUIETER one — absent. `none` keeps that canvas clean and honest ("don't
-   * force a nebula onto white; honesty over consistency"). */
-  --nebula: none;
+  /* §5 nebula, light mode — RETUNED to the Concept 3 mockup's light theme:
+   * the daytime canvas is now a soft sky (#dfe9f6), and the mockup paints a
+   * quiet pale-blue cloud wash on it (its light --neb-a/-b/-c) + the faintest
+   * warm dust. Still daytime-quiet: pale blues on pale blue, felt in the
+   * gutters, never behind text (panels stay solid surface on top). */
+  --nebula:
+    radial-gradient(
+      58% 48% at 10% 6%,
+      rgba(150, 192, 240, 0.4),
+      transparent 60%
+    ),
+    radial-gradient(
+      54% 46% at 90% 94%,
+      rgba(190, 214, 245, 0.45),
+      transparent 62%
+    ),
+    radial-gradient(
+      46% 40% at 22% 84%,
+      rgba(160, 198, 240, 0.32),
+      transparent 58%
+    ),
+    radial-gradient(
+      34% 30% at 76% 16%,
+      rgba(201, 151, 0, 0.04),
+      transparent 55%
+    );
 
   /* HEADER atmosphere, light mode — user direction 2026-07-08: the living space
-   * background now runs in BOTH themes, daytime-quiet. A barely-there cool wash
-   * (peaks 0.035–0.05, inside §5's light ceiling) pushed to the corners + a warm
-   * dust whisper, with a few faint NAVY star glints toward the right (white dots
-   * vanish on white). All positioned in % away from the far-left wordmark, so
-   * "First Light" keeps full contrast. The drift animation lives in app.css. */
+   * background runs in BOTH themes, daytime-quiet. RETUNED to the Concept 3
+   * light palette: pale sky-blue washes pushed to the corners + a warm dust
+   * whisper, with a few faint slate-blue star glints toward the right (white
+   * dots vanish on a light canvas). All positioned in % away from the far-left
+   * wordmark, so "First Light" keeps full contrast. Drift lives in app.css. */
   --nebula-header:
-    radial-gradient(65% 150% at 30% 0%, rgba(28, 79, 143, 0.05), transparent 72%),
-    radial-gradient(58% 150% at 86% 100%, rgba(83, 74, 183, 0.04), transparent 72%),
-    radial-gradient(44% 130% at 62% 22%, rgba(201, 151, 0, 0.035), transparent 66%);
+    radial-gradient(
+      65% 150% at 30% 0%,
+      rgba(150, 192, 240, 0.28),
+      transparent 72%
+    ),
+    radial-gradient(
+      58% 150% at 86% 100%,
+      rgba(160, 198, 240, 0.22),
+      transparent 72%
+    ),
+    radial-gradient(
+      44% 130% at 62% 22%,
+      rgba(201, 151, 0, 0.035),
+      transparent 66%
+    );
   --starfield:
-    radial-gradient(1.5px 1.5px at 62% 40%, rgba(12, 35, 64, 0.14), transparent 60%),
-    radial-gradient(1px 1px at 78% 66%, rgba(12, 35, 64, 0.11), transparent 60%),
-    radial-gradient(1px 1px at 88% 30%, rgba(12, 35, 64, 0.12), transparent 60%),
-    radial-gradient(1px 1px at 50% 74%, rgba(12, 35, 64, 0.1), transparent 60%);
+    radial-gradient(
+      1.5px 1.5px at 62% 40%,
+      rgba(60, 100, 160, 0.26),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 70% 20%,
+      rgba(60, 100, 160, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 78% 66%,
+      rgba(60, 100, 160, 0.2),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 88% 30%,
+      rgba(60, 100, 160, 0.22),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 94% 62%,
+      rgba(60, 100, 160, 0.16),
+      transparent 60%
+    ),
+    radial-gradient(
+      1px 1px at 50% 74%,
+      rgba(60, 100, 160, 0.18),
+      transparent 60%
+    );
 
-  /* DASHBOARD atmosphere, light mode — user direction 2026-07-07: the space
-   * feeling now lives in BOTH themes, daytime-quiet. A barely-there cool wash
-   * in two corners + a whisper of warm dust (all peaks 0.03–0.06, inside §5's
-   * light-mode ceiling), gutters only — the workspace stays bright, legible,
-   * print-friendly. The starfields and vignette stay ABSENT on white (they
-   * read as dirt, not stars — honesty over consistency). */
+  /* DASHBOARD atmosphere, light mode — RETUNED to the Concept 3 light palette:
+   * pale sky-blue corner washes + a whisper of warm dust, gutters only — the
+   * workspace stays bright, legible, print-friendly. The starfields and
+   * vignette stay ABSENT on the light canvas (they read as dirt, not stars —
+   * honesty over consistency). */
   --nebula-dash:
-    radial-gradient(48% 52% at 6% 4%, rgba(28, 79, 143, 0.05), transparent 62%),
-    /* cool wash, upper-left */
+    radial-gradient(
+      48% 52% at 6% 4%,
+      rgba(150, 192, 240, 0.3),
+      transparent 62%
+    ),
+    /* pale sky wash, upper-left */
     radial-gradient(
         55% 58% at 94% 94%,
-        rgba(83, 74, 183, 0.04),
+        rgba(160, 198, 240, 0.26),
         transparent 62%
       ),
-    /* cool violet wash, lower-right */
+    /* pale sky wash, lower-right */
     radial-gradient(32% 36% at 90% 6%, rgba(201, 151, 0, 0.04), transparent 56%); /* warm dust, corner whisper */
   --starfield-dash: none;
   --starfield-dash2: none;
   --dash-vignette: none;
 
-  /* The hero band keeps a whisper of sky in daytime: an ultra-faint cool wash
-   * plus one-or-two near-invisible NAVY stars (white dots vanish on white).
-   * The horizon glow stands down — daytime needs no skyline. */
+  /* The hero band keeps a whisper of sky in daytime: a pale sky wash (Concept 3
+   * light palette) plus one-or-two near-invisible slate-blue stars (white dots
+   * vanish on a light canvas). The horizon glow stands down — daytime needs no
+   * skyline. */
   --nebula-hero:
     radial-gradient(
       60% 130% at 80% 0%,
-      rgba(28, 79, 143, 0.05),
+      rgba(150, 192, 240, 0.3),
       transparent 70%
     ),
     radial-gradient(
@@ -649,10 +850,14 @@
   --starfield-hero:
     radial-gradient(
       1.5px 1.5px at 71% 30%,
-      rgba(12, 35, 64, 0.16),
+      rgba(60, 100, 160, 0.26),
       transparent 60%
     ),
-    radial-gradient(1px 1px at 58% 64%, rgba(12, 35, 64, 0.12), transparent 60%);
+    radial-gradient(
+      1px 1px at 58% 64%,
+      rgba(60, 100, 160, 0.2),
+      transparent 60%
+    );
   --hero-horizon: none;
 
   /* Edit-panel / settings field boxes: on white the box tints a half-step cool
