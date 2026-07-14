@@ -178,7 +178,7 @@ body {
 .fl-chart {
   background: var(--surface);
   border: 1px solid var(--border-hair);
-  border-radius: 10px;
+  border-radius: 8px; /* Concept 3 chrome: panel radius 10 → 8 */
 }
 
 /* ── shared living-space atmosphere (dashboard hero) ──────────────────────────────
@@ -239,14 +239,19 @@ body {
     opacity: 1;
   }
 }
-/* ── toolbar ───────────────────────────────────────────────────────────────── */
+/* ── toolbar (Concept 3 Wave 4: ONE line at ≥ ~1400px) ─────────────────────────
+ * A single left-packed flex row — zoom seg · view seg · add actions · Baseline ·
+ * legend — with the save cluster pinned right via its own margin-left:auto.
+ * Sized to the mockup's .fl-ctoolbar (5px 10px chips, radius 8) with every
+ * UNPINNED dimension tightened (row gap 6, side padding 10, legend inner gap 4)
+ * so the resting row stays one line on a laptop; below that flex-wrap drops
+ * whole groups to a second line, never mid-group. */
 .fl-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 6px;
   flex-wrap: wrap;
-  padding: 8px 18px;
+  padding: 6px 10px;
 }
 
 /* segmented zoom control */
@@ -262,12 +267,16 @@ body {
   background: transparent;
   color: var(--text-secondary);
   font-size: 13px;
-  padding: 5px 14px;
+  padding: 5px 10px;
   cursor: pointer;
   border-right: 1px solid var(--border-hair);
 }
 .fl-seg button:last-child {
   border-right: none;
+}
+.fl-seg button:hover:not([aria-pressed="true"]) {
+  background: var(--surface-raised);
+  color: var(--text-primary);
 }
 .fl-seg button[aria-pressed="true"] {
   /* inverted chip = clearly "selected", no accent colour needed */
@@ -275,26 +284,43 @@ body {
   color: var(--canvas);
   font-weight: 500;
 }
+/* The seg clips its children (overflow:hidden for the rounded corners), so the
+ * ring must draw INSIDE the button or it would be cut off. */
+.fl-seg button:focus-visible {
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fl-seg button,
+  .fl-discard,
+  .fl-baseline-toggle {
+    transition:
+      background 140ms ease,
+      color 140ms ease,
+      border-color 140ms ease;
+  }
+}
 
-/* legend */
+/* legend — the mockup's compact chips: 11px text, 9px gaps between items */
 .fl-legend {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 9px;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
+  min-width: 0;
 }
 .fl-legend .fl-leg-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
 }
 /* The legend is now the STATE vocabulary (§7) — squad identity lives only in the
  * grid. Every swatch is the same bar-shaped chip so the row reads as one set. */
 .fl-leg-sw {
-  width: 16px;
+  width: 15px;
   height: 11px;
   border-radius: 3px;
   display: inline-block;
@@ -329,7 +355,7 @@ body {
 /* Gate glyphs read gold, but as *text* → the designated gold-as-text token so
  * they stay legible on a light background (§2 a11y rule). */
 .fl-leg-glyph {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--gold-text);
 }
 
@@ -341,17 +367,17 @@ body {
 .fl-save-area {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-left: auto;
 }
 .fl-dirty-note {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-telemetry);
   white-space: nowrap;
 }
 .fl-save-hint {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -363,8 +389,8 @@ body {
   font: inherit;
   font-size: 12px;
   line-height: 1;
-  padding: 6px 11px;
-  border-radius: 7px;
+  padding: 6px 10px;
+  border-radius: 8px;
   cursor: pointer;
 }
 .fl-discard:hover {
@@ -383,8 +409,8 @@ body {
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
-  padding: 7px 18px;
-  border-radius: 7px;
+  padding: 7px 14px;
+  border-radius: 8px;
   cursor: pointer;
 }
 .fl-save:hover:not(:disabled) {
@@ -404,7 +430,7 @@ body {
   background: linear-gradient(var(--blocked-bg), var(--blocked-bg))
     var(--surface);
   border: 1px solid var(--border-hair);
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 13px;
 }
 .fl-save-error {
@@ -412,7 +438,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 8px 20px;
+  padding: 8px 14px;
   color: var(--text-primary);
 }
 .fl-save-error + .fl-save-error {
@@ -494,7 +520,7 @@ body {
 .fl-modal {
   background: var(--surface);
   border: 1px solid var(--border-hair);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 20px 24px;
   width: 380px;
   max-width: calc(100vw - 48px);
@@ -549,11 +575,12 @@ body {
   margin-bottom: 8px;
   background: var(--box-bg);
   border: 1px solid var(--box-edge);
-  border-radius: 9px;
+  border-radius: 8px;
   padding: 7px 10px;
 }
 .fl-field:hover {
-  border-color: var(--text-telemetry);
+  /* the Concept 3 approach light: a cool glass edge, never gold */
+  border-color: var(--glass-border-hi);
 }
 .fl-field:last-child {
   margin-bottom: 0;
@@ -629,7 +656,7 @@ body {
   font-weight: 500;
   line-height: 1;
   padding: 7px 14px;
-  border-radius: 7px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -692,11 +719,8 @@ body {
 }
 
 /* ── view filter + add-task (quiet, never gold) ────────────────────────────── */
-/* The §9 view control reuses the segmented vocabulary but wraps on narrow
- * widths so the six options never overflow the toolbar. */
-.fl-view-seg {
-  flex-wrap: wrap;
-}
+/* The §9 view control stays ONE unit (the seg never wraps internally); on
+ * narrow windows the toolbar's own flex-wrap drops whole groups instead. */
 .fl-add-task {
   white-space: nowrap;
 }
@@ -741,8 +765,8 @@ body {
   font: inherit;
   font-size: 12px;
   line-height: 1;
-  padding: 6px 11px;
-  border-radius: 7px;
+  padding: 6px 10px;
+  border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -777,7 +801,7 @@ body {
   overflow: hidden; /* clip DHTMLX's square corners to the panel radius */
   background: var(--surface);
   border: 1px solid var(--border-hair);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .fl-chart-inner {
   position: absolute;
@@ -799,7 +823,7 @@ body {
   text-align: center;
   background: var(--surface);
   border: 1px solid var(--border-hair);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .fl-state h2 {
   margin: 0;
@@ -809,7 +833,7 @@ body {
 .fl-state .fl-card {
   max-width: 460px;
   border: 1px solid var(--border-hair);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 20px 24px;
   background: var(--surface);
 }
@@ -831,7 +855,7 @@ body {
   overflow-y: auto;
   background: var(--surface-raised);
   border: 1px solid var(--border-hair);
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   /* A soft edge shadow so the panel reads as a LAYER floating above the chart,
@@ -965,14 +989,15 @@ body {
 .fl-panel-box {
   background: var(--box-bg);
   border: 1px solid var(--box-edge);
-  border-radius: 9px;
+  border-radius: 8px;
   padding: 11px 12px;
 }
 .fl-panel-box + .fl-panel-box {
   margin-top: 8px;
 }
 .fl-panel-box:hover {
-  border-color: var(--text-telemetry);
+  /* Concept 3 approach light: the cool glass edge, never gold */
+  border-color: var(--glass-border-hi);
 }
 @media (prefers-reduced-motion: no-preference) {
   .fl-panel-box,
@@ -1352,14 +1377,14 @@ body {
   margin: 14px 0 4px;
   background: var(--box-bg);
   border: 1px solid var(--box-edge);
-  border-radius: 9px;
+  border-radius: 8px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 .fl-panel-add:hover {
-  border-color: var(--text-telemetry);
+  border-color: var(--glass-border-hi);
 }
 .fl-panel-add-btn {
   appearance: none;
@@ -1381,11 +1406,11 @@ body {
   margin-top: 14px;
   background: var(--box-bg);
   border: 1px solid var(--box-edge);
-  border-radius: 9px;
+  border-radius: 8px;
   padding: 10px 12px;
 }
 .fl-panel-delete:hover {
-  border-color: var(--text-telemetry);
+  border-color: var(--glass-border-hi);
 }
 .fl-panel-danger-ghost {
   appearance: none;
