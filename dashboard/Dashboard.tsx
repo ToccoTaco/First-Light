@@ -1,20 +1,23 @@
-// dashboard/Dashboard.tsx — the landing view (Phase 4), a THIN renderer of the
-// pure DashboardModel. Every number/date/label shown here was decided in
-// dashboard-model.ts; this file only lays them out and applies the tokens.
+// dashboard/Dashboard.tsx — the landing view (Concept 3 "Synthesis" redesign,
+// Wave 3), a THIN renderer of the pure DashboardModel. Every number/date/label
+// shown here was decided in dashboard-model.ts; this file only lays them out
+// per the approved concept3 mockup: a glass hero card (T-minus + stat cluster)
+// over a 300 / 1fr / 320 asymmetric grid — Progress + Staleness left, the
+// Flight Path pipeline + slippage center, Anomaly Detection right.
 //
-// GOLD AUDIT (DESIGN §1/§4): the T-minus hero is the ONE gold moment on this
-// screen (mono --gold-text). The only other sanctioned gold is a staleness
-// warning tint (>14 days) in --gold-text. Nothing else here is gold — progress
-// bars are the blue/neutral family, the critical tile is deliberately quiet
-// (the gold thread lives on the chart), the slippage number is blocked-fg only
-// when it moved LATER.
+// GOLD AUDIT (DESIGN §1/§4): the T-minus number and the NEXT flight-path node
+// are the only gold on this screen (both mockup-approved). The one legacy
+// exception kept for regression: the staleness >14d warn tint (--gold-text),
+// sanctioned by the original design pass. Projected nodes are neutral OUTLINE
+// nodes (not the mockup's dim gold) to honor the gold discipline.
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type {
   BlockedItem,
   CountdownModel,
   CriticalModel,
   DashboardModel,
+  FlightPathModel,
   GateDelta,
   Rollup,
   RollupsModel,
@@ -59,299 +62,178 @@ function CountsLine({ c }: { c: Rollup["counts"] }) {
   return <>{parts.length ? parts : "no tasks yet"}</>;
 }
 
-/** A console label — small-caps mono, one per tile (DESIGN §4). */
-function TileLabel({ children }: { children: string }) {
-  return <div className="fl-tile-label">{children}</div>;
-}
-
-// ── the hero (deliverable 1) ──────────────────────────────────────────────────
-
-function Hero({ countdown }: { countdown: CountdownModel }) {
-  return (
-    <section className="fl-dash-hero">
-      {/* Living space background (2026-07-08): parallax cloud + star layers
-          drifting at different speeds, a faint horizon glow, and — dark only — an
-          occasional slow shooting-star streak. Transform/opacity-only, long-
-          looped, reduced-motion-guarded (dashboard.css). The countdown sits over
-          the calm centre, so its contrast never moves; both themes get motion. */}
-      <div className="fl-atmo" aria-hidden="true">
-        <div className="fl-atmo-layer fl-atmo-clouds" />
-        <div className="fl-atmo-layer fl-atmo-stars" />
-        <div className="fl-atmo-layer fl-atmo-horizon" />
-        <div className="fl-shooting-star" />
-      </div>
-      <div className="fl-dash-hero-inner">
-        {countdown.kind === "countdown" && (
-          <>
-            <div className="fl-countdown-kicker">T–minus</div>
-            <div className="fl-countdown-num">{countdown.days} DAYS</div>
-            <div className="fl-countdown-target">
-              to {countdown.gateName} · {fmtDate(countdown.gateDateISO)}
-            </div>
-          </>
-        )}
-        {countdown.kind === "no-gates" && (
-          <>
-            <div className="fl-countdown-calm">No gate on the board</div>
-            <div className="fl-countdown-target">
-              Add a review or test gate to set a target.
-            </div>
-          </>
-        )}
-        {countdown.kind === "all-passed" && (
-          <>
-            <div className="fl-countdown-calm">All gates passed</div>
-            <div className="fl-countdown-target">
-              Every review and test gate is behind us.
-            </div>
-          </>
-        )}
-        {countdown.kind === "no-schedule" && (
-          <>
-            <div className="fl-countdown-calm">Schedule paused</div>
-            <div className="fl-countdown-target">
-              A conflict is blocking the plan — open the chart to see the fix.
-            </div>
-          </>
-        )}
-      </div>
-    </section>
-  );
-}
-
-// ── rollups (deliverable 2) ───────────────────────────────────────────────────
-
-function ProgressBar({
-  percent,
-  chipColor,
-  name,
+/** A console label — small-caps mono with a tick and an optional right-aligned
+ * meta readout (mockup: "5 SYSTEMS", "4 GATES", "1 ACTIVE"). `crit` lights the
+ * tick in blocked ink (the Anomaly Detection card). */
+function CardLabel({
+  children,
+  meta,
+  crit,
 }: {
-  percent: number;
-  chipColor?: string;
-  name: string;
+  children: string;
+  meta?: string;
+  crit?: boolean;
 }) {
-  const pct = Math.round(percent);
   return (
-    <div className="fl-prog-row">
-      <span className="fl-prog-name">
-        {chipColor && (
-          <span className="fl-prog-chip" style={{ background: chipColor }} />
-        )}
-        {name}
-      </span>
-      <span className="fl-prog-track">
-        <span className="fl-prog-fill" style={{ width: `${pct}%` }} />
-      </span>
-      <span className="fl-prog-pct">{pct}%</span>
+    <div className={`fl-card-label${crit ? " fl-card-label-crit" : ""}`}>
+      <span className="fl-card-tick" aria-hidden="true" />
+      {children}
+      <span className="fl-card-grow" />
+      {meta !== undefined && <span className="fl-card-meta">{meta}</span>}
     </div>
   );
 }
 
-function Rollups({ rollups }: { rollups: RollupsModel }) {
-  return (
-    <section className="fl-tile fl-tile-rollups">
-      <TileLabel>Progress</TileLabel>
-      <div className="fl-prog-overall">
-        <ProgressBar percent={rollups.overall.percent} name="Overall" />
-        <div className="fl-prog-counts">
-          <CountsLine c={rollups.overall.counts} />
-        </div>
-      </div>
-      <div className="fl-prog-squads">
-        {rollups.squads.map((s: SquadRollup) => (
-          <div key={s.squadId} className="fl-prog-squad">
-            <ProgressBar
-              percent={s.percent}
-              chipColor={s.color}
-              name={s.name}
-            />
-            <div className="fl-prog-counts">
-              <CountsLine c={s.counts} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
+// ── the hero (glass card: countdown + right-aligned stat cluster) ─────────────
 
-// ── slippage (deliverable 3) ──────────────────────────────────────────────────
-
-function GateDeltaTable({ deltas }: { deltas: GateDelta[] }) {
-  return (
-    <table className="fl-delta-table">
-      <thead>
-        <tr>
-          <th>Gate</th>
-          <th>Baseline</th>
-          <th>Now</th>
-          <th>Δ</th>
-        </tr>
-      </thead>
-      <tbody>
-        {deltas.map((g) => {
-          const cls =
-            g.deltaDays === null
-              ? "fl-delta-none"
-              : g.deltaDays > 0
-                ? "fl-delta-later"
-                : g.deltaDays < 0
-                  ? "fl-delta-earlier"
-                  : "fl-delta-steady";
-          return (
-            <tr key={g.gateId}>
-              <td className="fl-delta-name">{g.name}</td>
-              <td>{g.baselineISO ? fmtDate(g.baselineISO) : "—"}</td>
-              <td>{g.currentISO ? fmtDate(g.currentISO) : "—"}</td>
-              <td className={cls}>
-                {g.deltaDays === null ? "new" : fmtDelta(g.deltaDays)}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
-function Slippage({ slippage }: { slippage: SlippageModel }) {
-  return (
-    <section className="fl-tile fl-tile-slippage">
-      <TileLabel>Baseline slippage</TileLabel>
-      {slippage.kind === "no-baseline" ? (
-        <p className="fl-tile-empty">
-          No baseline set — tag a commit <code>baseline/&lt;date&gt;</code> to
-          start tracking slippage.
-        </p>
-      ) : (
-        <>
-          <p className="fl-slip-headline">
-            {slippage.metricLabel} has moved{" "}
-            {slippage.direction === "steady" ? (
-              <b className="fl-slip-steady">holding steady</b>
-            ) : (
-              <>
-                <b
-                  className={
-                    slippage.direction === "later"
-                      ? "fl-slip-later"
-                      : "fl-slip-earlier"
-                  }
-                >
-                  {slippage.days} day{slippage.days === 1 ? "" : "s"}{" "}
-                  {slippage.direction}
-                </b>
-              </>
-            )}{" "}
-            since baseline {slippage.baselineLabel}.
-          </p>
-          <GateDeltaTable deltas={slippage.gateDeltas} />
-        </>
-      )}
-    </section>
-  );
-}
-
-// ── critical health (deliverable 4) ───────────────────────────────────────────
-
-function Critical({
-  critical,
-  noSchedule,
+function Hero({
+  countdown,
+  overall,
 }: {
-  critical: CriticalModel | null;
-  noSchedule: boolean;
+  countdown: CountdownModel;
+  overall: Rollup;
 }) {
   return (
-    <section className="fl-tile fl-tile-critical">
-      <TileLabel>Critical path</TileLabel>
-      {!critical ? (
-        <p className="fl-tile-empty">
-          {noSchedule
-            ? "No critical path — the schedule is blocked by a conflict."
-            : "No critical path yet — add tasks to see the thread."}
-        </p>
-      ) : (
-        <>
-          <div className="fl-crit-finish">
-            <span className="fl-crit-finish-label">Projected finish</span>
-            <span className="fl-crit-finish-date">
-              {fmtDate(critical.finishISO)}
-            </span>
+    <section className="fl-dash-hero">
+      {/* Mockup atmosphere: a soft gold radial glow + a one-shot glass sheen
+          (sweeps once on load, then rests — reduced-motion viewers see the
+          resting state; both live in dashboard.css). */}
+      <div className="fl-hero-glow" aria-hidden="true" />
+      <div className="fl-hero-sheen" aria-hidden="true" />
+      <div className="fl-hero-row">
+        <div className="fl-hero-main">
+          {countdown.kind === "countdown" && (
+            <>
+              <div className="fl-countdown-kicker">T–minus</div>
+              <div className="fl-countdown-num">
+                {countdown.days} <small>DAYS</small>
+              </div>
+              <div className="fl-countdown-target">
+                to <b>{countdown.gateName}</b> ·{" "}
+                {fmtDate(countdown.gateDateISO)}
+              </div>
+            </>
+          )}
+          {countdown.kind === "no-gates" && (
+            <>
+              <div className="fl-countdown-calm">No gate on the board</div>
+              <div className="fl-countdown-target">
+                Add a review or test gate to set a target.
+              </div>
+            </>
+          )}
+          {countdown.kind === "all-passed" && (
+            <>
+              <div className="fl-countdown-calm">All gates passed</div>
+              <div className="fl-countdown-target">
+                Every review and test gate is behind us.
+              </div>
+            </>
+          )}
+          {countdown.kind === "no-schedule" && (
+            <>
+              <div className="fl-countdown-calm">Schedule paused</div>
+              <div className="fl-countdown-target">
+                A conflict is blocking the plan — open the chart to see the fix.
+              </div>
+            </>
+          )}
+        </div>
+        {/* The stat cluster reads straight off rollups.overall — green overall
+            %, blue in-progress, crimson blocked (mockup). */}
+        <div className="fl-hero-stats">
+          <div className="fl-hstat">
+            <div className="fl-hstat-n fl-hstat-grn">
+              {Math.round(overall.percent)}
+              <small>%</small>
+            </div>
+            <div className="fl-hstat-k">Overall</div>
           </div>
-          <div className="fl-crit-chain">
-            {critical.chain.map((n, i) => (
-              <span key={n.id} className="fl-crit-node-wrap">
-                {i > 0 && <span className="fl-crit-arrow">→</span>}
-                <span
-                  className={`fl-crit-node${n.isGate ? " fl-crit-node-gate" : ""}`}
-                >
-                  {n.label}
-                </span>
-              </span>
-            ))}
+          <div className="fl-hstat">
+            <div className="fl-hstat-n fl-hstat-blu">
+              {overall.counts.inProgress}
+            </div>
+            <div className="fl-hstat-k">In Progress</div>
           </div>
-          <div className="fl-crit-meta">
-            <span>
-              {critical.taskCount} task{critical.taskCount === 1 ? "" : "s"} on
-              the thread
-            </span>
-            {critical.nearestSlackDays !== null && (
-              <span>
-                nearest branch: {critical.nearestSlackDays} day
-                {critical.nearestSlackDays === 1 ? "" : "s"} of slack
-              </span>
-            )}
+          <div className="fl-hstat">
+            <div className="fl-hstat-n fl-hstat-crm">
+              {overall.counts.blocked}
+            </div>
+            <div className="fl-hstat-k">Blocked</div>
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </section>
   );
 }
 
-// ── blocked (deliverable 5) ───────────────────────────────────────────────────
+// ── LEFT · progress (thin green bars, squad chips, counts lines) ──────────────
 
-function Blocked({ blocked }: { blocked: BlockedItem[] }) {
+function ProgressBlock({
+  big,
+  name,
+  chipColor,
+  rollup,
+}: {
+  big?: boolean;
+  name: string;
+  chipColor?: string;
+  rollup: Rollup;
+}) {
+  const pct = Math.round(rollup.percent);
   return (
-    <section className="fl-tile fl-tile-blocked">
-      <TileLabel>Blocked</TileLabel>
-      {blocked.length === 0 ? (
-        <p className="fl-tile-empty">Nothing blocked.</p>
-      ) : (
-        <ul className="fl-blocked-list">
-          {blocked.map((b: BlockedItem) => (
-            <li key={b.id} className="fl-blocked-item">
-              <div className="fl-blocked-head">
-                <span className="fl-blocked-name">{b.name}</span>
-                {b.squadName && (
-                  <span className="fl-blocked-chip">
-                    <span
-                      className="fl-prog-chip"
-                      style={{ background: b.squadColor ?? undefined }}
-                    />
-                    {b.squadName}
-                  </span>
-                )}
-              </div>
-              <div className="fl-blocked-meta">
-                open {b.daysOpen} day{b.daysOpen === 1 ? "" : "s"}
-                {b.blocksName && <> · blocks {b.blocksName}</>}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className={big ? "fl-prog-overall" : "fl-prog-squad"}>
+      <div className="fl-prog-top">
+        <span className={`fl-prog-name${big ? " fl-prog-name-big" : ""}`}>
+          {chipColor && (
+            <span
+              className="fl-chip"
+              style={{ background: chipColor, color: chipColor }}
+            />
+          )}
+          {name}
+        </span>
+        <span className={`fl-pct${big ? " fl-pct-big" : ""}`}>{pct}%</span>
+      </div>
+      <div className={`fl-track${big ? " fl-track-big" : ""}`}>
+        <div
+          className="fl-fill"
+          style={{ "--w": `${pct}%` } as CSSProperties}
+        />
+      </div>
+      <div className="fl-prog-counts">
+        <CountsLine c={rollup.counts} />
+      </div>
+    </div>
+  );
+}
+
+function ProgressCard({ rollups }: { rollups: RollupsModel }) {
+  const n = rollups.squads.length;
+  return (
+    <section className="fl-card">
+      <CardLabel meta={`${n} SYSTEM${n === 1 ? "" : "S"}`}>Progress</CardLabel>
+      <ProgressBlock big name="Overall" rollup={rollups.overall} />
+      {rollups.squads.map((s: SquadRollup) => (
+        <ProgressBlock
+          key={s.squadId}
+          name={s.name}
+          chipColor={s.color}
+          rollup={s}
+        />
+      ))}
     </section>
   );
 }
 
-// ── staleness (deliverable 6) ─────────────────────────────────────────────────
+// ── LEFT · staleness (tier tints kept: fresh dot / warn gold / stale ink) ─────
 
-function Staleness({ staleness }: { staleness: StalenessModel }) {
+function StalenessCard({ staleness }: { staleness: StalenessModel }) {
   return (
-    <section className="fl-tile fl-tile-staleness">
-      <TileLabel>Staleness</TileLabel>
+    <section className="fl-card">
+      <CardLabel>Staleness</CardLabel>
       {staleness.kind === "absent" ? (
-        <p className="fl-tile-empty">
+        <p className="fl-card-empty">
           Staleness data appears after a deploy build (<code>npm run meta</code>
           ).
         </p>
@@ -359,7 +241,12 @@ function Staleness({ staleness }: { staleness: StalenessModel }) {
         <ul className="fl-stale-list">
           {staleness.rows.map((r: StalenessRow) => (
             <li key={r.path} className={`fl-stale-row fl-stale-${r.tier}`}>
-              <span className="fl-stale-name">{r.label}</span>
+              <span className="fl-stale-name">
+                {r.tier === "fresh" && (
+                  <span className="fl-stale-ok" aria-hidden="true" />
+                )}
+                {r.label}
+              </span>
               <span className="fl-stale-age">
                 {r.daysAgo === null
                   ? "never committed"
@@ -369,6 +256,304 @@ function Staleness({ staleness }: { staleness: StalenessModel }) {
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+// ── CENTER · flight path pipeline + critical meta + slippage ──────────────────
+
+function FlightPath({ flightPath }: { flightPath: FlightPathModel }) {
+  const { nodes, gateCount } = flightPath;
+  if (nodes.length === 0) {
+    // Degrade honestly: gateCount tells "schedule paused" (gates exist but a
+    // conflict blanked their dates) apart from "no gates on the board".
+    return (
+      <p className="fl-card-empty">
+        {gateCount > 0
+          ? "Schedule paused — the gates have no dates until the conflict is fixed."
+          : "No gate on the board — add a review or test gate to chart the flight path."}
+      </p>
+    );
+  }
+  // Rail fill: from the first node to the midpoint past the LAST CLEARED node
+  // (green running to gold toward the next gate). No cleared gates → no fill.
+  let lastCleared = -1;
+  nodes.forEach((n, i) => {
+    if (n.state === "cleared") lastCleared = i;
+  });
+  return (
+    <ol className="fl-pipe">
+      <span className="fl-rail" aria-hidden="true" />
+      {lastCleared >= 0 && (
+        <span
+          className="fl-rail-fill"
+          aria-hidden="true"
+          style={{
+            width: `calc((100% - 72px) * ${(lastCleared + 1) / nodes.length})`,
+          }}
+        />
+      )}
+      {nodes.map((n) => (
+        <li key={n.id} className={`fl-node fl-node-${n.state}`}>
+          <span className="fl-node-dot" aria-hidden="true" />
+          <span className="fl-node-name">{n.name}</span>
+          {n.dateISO && (
+            <span className="fl-node-when">{fmtDate(n.dateISO)}</span>
+          )}
+          <span className="fl-node-state">
+            {n.state === "cleared"
+              ? "Cleared"
+              : n.state === "next"
+                ? `T−${n.tMinusDays ?? 0}d · Next`
+                : "Projected"}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function GateDeltaTable({ deltas }: { deltas: GateDelta[] }) {
+  return (
+    <div className="fl-table-wrap">
+      <table className="fl-delta-table">
+        <thead>
+          <tr>
+            <th>Gate</th>
+            <th>Baseline</th>
+            <th>Now</th>
+            <th>Δ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {deltas.map((g) => {
+            const cls =
+              g.deltaDays === null
+                ? "fl-delta-none"
+                : g.deltaDays > 0
+                  ? "fl-delta-later"
+                  : g.deltaDays < 0
+                    ? "fl-delta-earlier"
+                    : "fl-delta-steady";
+            return (
+              <tr key={g.gateId}>
+                <td className="fl-delta-name">{g.name}</td>
+                <td>{g.baselineISO ? fmtDate(g.baselineISO) : "—"}</td>
+                <td>{g.currentISO ? fmtDate(g.currentISO) : "—"}</td>
+                <td className={cls}>
+                  <span className="fl-delta-pill">
+                    {g.deltaDays === null ? "new" : fmtDelta(g.deltaDays)}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** The slippage strip: big signed delta + the existing headline sentence, with
+ * the projected-finish block on the right (from critical). The `no-baseline`
+ * state renders the honest empty copy in a quiet strip so the projected finish
+ * still has a home. */
+function SlippageStrip({
+  slippage,
+  finishISO,
+}: {
+  slippage: SlippageModel;
+  finishISO: string | null;
+}) {
+  const fin = finishISO && (
+    <div className="fl-slip-fin">
+      <div className="fl-slip-fin-k">Projected finish</div>
+      <div className="fl-slip-fin-v">{fmtDate(finishISO)}</div>
+    </div>
+  );
+  if (slippage.kind === "no-baseline") {
+    if (!fin) {
+      // Nothing to anchor a strip — just the empty-state copy.
+      return (
+        <p className="fl-card-empty">
+          No baseline set — tag a commit <code>baseline/&lt;date&gt;</code> to
+          start tracking slippage.
+        </p>
+      );
+    }
+    return (
+      <div className="fl-slip-strip fl-slip-dir-steady">
+        <p className="fl-slip-txt">
+          No baseline set — tag a commit <code>baseline/&lt;date&gt;</code> to
+          start tracking slippage.
+        </p>
+        {fin}
+      </div>
+    );
+  }
+  const big =
+    slippage.direction === "later"
+      ? `+${slippage.days}d`
+      : slippage.direction === "earlier"
+        ? `−${slippage.days}d`
+        : "0d";
+  return (
+    <div className={`fl-slip-strip fl-slip-dir-${slippage.direction}`}>
+      <div className="fl-slip-big">{big}</div>
+      <p className="fl-slip-txt">
+        {slippage.metricLabel} has moved{" "}
+        {slippage.direction === "steady" ? (
+          <b className="fl-slip-steady">holding steady</b>
+        ) : (
+          <b
+            className={
+              slippage.direction === "later"
+                ? "fl-slip-later"
+                : "fl-slip-earlier"
+            }
+          >
+            {slippage.days} day{slippage.days === 1 ? "" : "s"}{" "}
+            {slippage.direction}
+          </b>
+        )}{" "}
+        since baseline <b>{slippage.baselineLabel}</b>.
+      </p>
+      {fin}
+    </div>
+  );
+}
+
+function FlightPathCard({
+  flightPath,
+  critical,
+  slippage,
+  noSchedule,
+}: {
+  flightPath: FlightPathModel;
+  critical: CriticalModel | null;
+  slippage: SlippageModel;
+  noSchedule: boolean;
+}) {
+  const n = flightPath.gateCount;
+  return (
+    <section className="fl-card">
+      <CardLabel meta={`${n} GATE${n === 1 ? "" : "S"}`}>
+        Flight Path · Critical Chain
+      </CardLabel>
+      <FlightPath flightPath={flightPath} />
+      {critical ? (
+        <div className="fl-crit-meta">
+          <span>
+            <b>
+              {critical.taskCount} task{critical.taskCount === 1 ? "" : "s"}
+            </b>{" "}
+            on the thread
+          </span>
+          {critical.nearestSlackDays !== null && (
+            <span>
+              nearest branch:{" "}
+              <b>
+                {critical.nearestSlackDays} day
+                {critical.nearestSlackDays === 1 ? "" : "s"}
+              </b>{" "}
+              of slack
+            </span>
+          )}
+        </div>
+      ) : (
+        <p className="fl-card-empty">
+          {noSchedule
+            ? "No critical path — the schedule is blocked by a conflict."
+            : "No critical path yet — add tasks to see the thread."}
+        </p>
+      )}
+      <SlippageStrip
+        slippage={slippage}
+        finishISO={critical ? critical.finishISO : null}
+      />
+      {slippage.kind === "tracked" && (
+        <GateDeltaTable deltas={slippage.gateDeltas} />
+      )}
+    </section>
+  );
+}
+
+// ── RIGHT · anomaly detection (blocked rows + healthy squads + review spine) ──
+
+function AnomalyCard({
+  blocked,
+  squads,
+  onReviewSpine,
+}: {
+  blocked: BlockedItem[];
+  squads: SquadRollup[];
+  onReviewSpine: () => void;
+}) {
+  const blockedSquads = new Set(
+    blocked.map((b) => b.squadName).filter((s): s is string => s !== null),
+  );
+  const healthy = squads.filter((s) => !blockedSquads.has(s.name));
+  return (
+    <section className="fl-card">
+      <CardLabel crit meta={`${blocked.length} ACTIVE`}>
+        Anomaly Detection
+      </CardLabel>
+      {blocked.length > 0 && (
+        <ul className="fl-anom-list">
+          {blocked.map((b: BlockedItem) => (
+            <li
+              key={b.id}
+              className="fl-anom-item"
+              // The full story lives on the tooltip so the compact row loses
+              // nothing: days open + what this task is holding up.
+              title={`open ${b.daysOpen} day${b.daysOpen === 1 ? "" : "s"}${
+                b.blocksName ? ` · blocks ${b.blocksName}` : ""
+              }`}
+            >
+              <span className="fl-anom-name">{b.name}</span>
+              {b.squadName && (
+                <span className="fl-anom-squad">
+                  <span
+                    className="fl-chip"
+                    style={
+                      b.squadColor
+                        ? { background: b.squadColor, color: b.squadColor }
+                        : undefined
+                    }
+                  />
+                  {b.squadName}
+                </span>
+              )}
+              <span className="fl-anom-age">{b.daysOpen}d</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {healthy.length > 0 && (
+        <div className="fl-anom-clear">
+          {healthy.map((s) => (
+            <div key={s.squadId} className="fl-anom-clear-row">
+              <span className="fl-anom-ok" aria-hidden="true">
+                ●
+              </span>{" "}
+              {s.name}
+              <span className="fl-anom-clear-r">no blockers</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {blocked.length === 0 && healthy.length === 0 && (
+        <p className="fl-card-empty">Nothing blocked.</p>
+      )}
+      <div className="fl-actions">
+        <button
+          type="button"
+          className="fl-review-link"
+          onClick={onReviewSpine}
+        >
+          Review spine →
+        </button>
+      </div>
     </section>
   );
 }
@@ -384,25 +569,29 @@ export function Dashboard({
 }) {
   return (
     <div className="fl-dash">
-      <Hero countdown={model.countdown} />
-      <div className="fl-dash-actions">
-        <button
-          type="button"
-          className="fl-review-link"
-          onClick={onReviewSpine}
-        >
-          Review spine →
-        </button>
-      </div>
-      <div className="fl-dash-grid">
-        <Rollups rollups={model.rollups} />
-        <Slippage slippage={model.slippage} />
-        <Critical
-          critical={model.critical}
-          noSchedule={model.countdown.kind === "no-schedule"}
-        />
-        <Blocked blocked={model.blocked} />
-        <Staleness staleness={model.staleness} />
+      <div className="fl-dash-inner">
+        <Hero countdown={model.countdown} overall={model.rollups.overall} />
+        <div className="fl-dash-grid">
+          <div className="fl-dash-col fl-dash-col-left">
+            <ProgressCard rollups={model.rollups} />
+            <StalenessCard staleness={model.staleness} />
+          </div>
+          <div className="fl-dash-col fl-dash-col-center">
+            <FlightPathCard
+              flightPath={model.flightPath}
+              critical={model.critical}
+              slippage={model.slippage}
+              noSchedule={model.countdown.kind === "no-schedule"}
+            />
+          </div>
+          <div className="fl-dash-col fl-dash-col-right">
+            <AnomalyCard
+              blocked={model.blocked}
+              squads={model.rollups.squads}
+              onReviewSpine={onReviewSpine}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
