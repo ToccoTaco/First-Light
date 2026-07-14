@@ -1,0 +1,19 @@
+# auth-worker — Cloudflare Worker config (deploy with `npx wrangler deploy`
+# from this directory; see README.md for the full runbook).
+
+name = "first-light-auth"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+
+[vars]
+# The GitHub OAuth App's client id — PUBLIC (it also ships in the viewer's
+# ui/auth-config.ts). Replace after registering the OAuth App.
+GITHUB_CLIENT_ID = "REPLACE_WITH_OAUTH_APP_CLIENT_ID"
+
+# Comma-separated browser origins allowed to call POST /exchange. Origins only —
+# scheme + host (+ port), no paths. Update and redeploy to change.
+ALLOWED_ORIGINS = "https://toccotaco.github.io,http://localhost:5173"
+
+# GITHUB_CLIENT_SECRET is NOT a var — it is a secret, set once per environment:
+#   npx wrangler secret put GITHUB_CLIENT_SECRET
+# Never put it in this file or anywhere else in the repo.

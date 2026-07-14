@@ -78,6 +78,17 @@ import {
   type Zoom,
 } from "./gantt-adapter";
 import { applyMode, otherMode, readMode, resolveMode, type Mode } from "./mode";
+import {
+  OAUTH_STATE_KEY,
+  buildAuthorizeUrl,
+  exchangeCode,
+  fetchLogin,
+  isAuthConfigured,
+  parseCallbackParams,
+  randomState,
+  stripCallbackParams,
+} from "./auth";
+import { AUTH_WORKER_URL, GITHUB_CLIENT_ID } from "./auth-config";
 import { Header, type Screen } from "./header";
 import { loadMeta, type Meta } from "../storage/meta";
 import {
@@ -179,6 +190,11 @@ const TOAST_ICON: Record<ToastKind, string> = {
   warn: "⚠",
   info: "›",
 };
+
+// "Sign in with GitHub" is a deploy-time capability: it exists only when the
+// maintainer has filled in ui/auth-config.ts (OAuth App id + worker URL). With
+// either blank, NOTHING below renders or runs — the app is PAT-only, unchanged.
+const AUTH_ENABLED = isAuthConfigured(GITHUB_CLIENT_ID, AUTH_WORKER_URL);
 
 async function fetchText(url: string): Promise<string> {
   const res = await fetch(url, { cache: "no-store" });
@@ -312,6 +328,82 @@ export default function App() {
     setToast({ text, kind });
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 4000);
+  };
+
+  // ── "Sign in with GitHub" (OAuth callback leg) ──────────────────────────────
+  // If GitHub just redirected back with ?code&state: validate the state against
+  // sessionStorage (CSRF), swap the code for a token via the auth worker, and
+  // store it into the SAME settings blob the PAT path uses — the save flow
+  // never knows which door the token came through. The URL is scrubbed of
+  // code/state IMMEDIATELY (before any await), preserving ?mode= and friends —
+  // that also makes this idempotent under StrictMode's double-invoked effects,
+  // with the ref guard as the explicit belt.
+  const oauthHandled = useRef(false);
+  useEffect(() => {
+    if (!AUTH_ENABLED || oauthHandled.current) return;
+    oauthHandled.current = true;
+
+    const params = parseCallbackParams(window.location.search);
+    if (!params) return;
+
+    const cleaned = stripCallbackParams(window.location.search);
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${cleaned}${window.location.hash}`,
+    );
+
+    const expected = window.sessionStorage.getItem(OAUTH_STATE_KEY);
+    window.sessionStorage.removeItem(OAUTH_STATE_KEY);
+    if (!expected || expected !== params.state) {
+      showToast(
+        "GitHub sign-in couldn't be verified — please try again from Settings.",
+        "warn",
+      );
+      return;
+    }
+
+    void (async () => {
+      const result = await exchangeCode(AUTH_WORKER_URL, params.code);
+      if (!result.ok) {
+        showToast(`GitHub sign-in failed: ${result.message}`, "warn");
+        return;
+      }
+      // Merge the token into the existing blob — owner/repo/branch survive.
+      const prev = getSettings(window.localStorage);
+      const next: GitHubSettings = {
+        token: result.token,
+        owner: prev?.owner ?? "",
+        repo: prev?.repo ?? "",
+        branch: prev?.branch ?? "main",
+      };
+      setSettings(window.localStorage, next);
+      setGhSettings(next);
+      // Cheap identity check — also proves the token works. Degrades quietly.
+      const login = await fetchLogin(result.token);
+      showToast(
+        login ? `Signed in as ${login}` : "Signed in with GitHub",
+        "success",
+      );
+    })();
+  }, []);
+
+  // The authorize leg: persist whatever repo fields are typed in the modal (so
+  // they survive the round-trip), mint + stash the state, and hand the page to
+  // GitHub. redirect_uri is DERIVED — Pages serves us under /First-Light/, so
+  // origin+pathname is the only correct answer, never a hardcoded "/".
+  const onSignIn = (s: GitHubSettings) => {
+    setSettings(window.localStorage, s);
+    setGhSettings(s);
+    const state = randomState();
+    window.sessionStorage.setItem(OAUTH_STATE_KEY, state);
+    window.location.assign(
+      buildAuthorizeUrl({
+        clientId: GITHUB_CLIENT_ID,
+        redirectUri: window.location.origin + window.location.pathname,
+        state,
+      }),
+    );
   };
 
   // ── working state: loaded texts + patches → schedule → chart model ──────────
@@ -894,6 +986,7 @@ export default function App() {
           initial={ghSettings}
           onClose={() => setSettingsOpen(false)}
           onClearChart={onClearChart}
+          onSignIn={AUTH_ENABLED ? onSignIn : null}
           onSave={(s) => {
             setSettings(window.localStorage, s);
             setGhSettings(s);
@@ -1244,11 +1337,14 @@ function SettingsModal({
   initial,
   onClose,
   onClearChart,
+  onSignIn,
   onSave,
 }: {
   initial: GitHubSettings | null;
   onClose: () => void;
   onClearChart: () => void;
+  /** Null when ui/auth-config.ts is blank — the OAuth UI then doesn't exist. */
+  onSignIn: ((s: GitHubSettings) => void) | null;
   onSave: (s: GitHubSettings) => void;
 }) {
   const [owner, setOwner] = useState(initial?.owner ?? "");
@@ -1256,6 +1352,13 @@ function SettingsModal({
   const [branch, setBranch] = useState(initial?.branch ?? "main");
   const [token, setToken] = useState(initial?.token ?? "");
   const [clearText, setClearText] = useState("");
+
+  const currentFields = (): GitHubSettings => ({
+    owner: owner.trim(),
+    repo: repo.trim(),
+    branch: branch.trim() || "main",
+    token: token.trim(),
+  });
 
   return (
     <div
@@ -1299,6 +1402,23 @@ function SettingsModal({
         </div>
         <div className="fl-modal-section">
           <div className="fl-modal-section-label">Access</div>
+          {/* Primary path (when the OAuth App + worker are configured): one
+              click, no token bureaucracy. Quiet inverted chip — never gold;
+              Save on the toolbar owns this screen's gold. */}
+          {onSignIn && (
+            <>
+              <button
+                type="button"
+                className="fl-modal-save fl-signin"
+                onClick={() => onSignIn(currentFields())}
+              >
+                Sign in with GitHub
+              </button>
+              <div className="fl-auth-divider" role="separator">
+                or
+              </div>
+            </>
+          )}
           <label className="fl-field">
             <span>Token</span>
             <input
@@ -1314,7 +1434,10 @@ function SettingsModal({
               🔒
             </span>
             <span>
-              Create a{" "}
+              {/* With sign-in above, the pasted token reads as what it now is:
+                  the manual fallback. Unconfigured, the copy is unchanged. */}
+              {onSignIn && <>Manual fallback: create</>}
+              {!onSignIn && <>Create</>} a{" "}
               <a
                 href="https://github.com/settings/personal-access-tokens"
                 target="_blank"
@@ -1365,14 +1488,7 @@ function SettingsModal({
           <button
             type="button"
             className="fl-modal-save"
-            onClick={() =>
-              onSave({
-                owner: owner.trim(),
-                repo: repo.trim(),
-                branch: branch.trim() || "main",
-                token: token.trim(),
-              })
-            }
+            onClick={() => onSave(currentFields())}
           >
             Save settings
           </button>

@@ -1,0 +1,25 @@
+{
+  // Standalone on purpose: this worker is NOT part of the app build. The root
+  // tsconfig's project references don't include it, so `npm run build` never
+  // touches this directory — wrangler bundles src/index.ts itself at deploy
+  // time. Typecheck locally with `npx tsc -p auth-worker` if you want one.
+  //
+  // "WebWorker" lib supplies Request/Response/fetch — the only runtime surface
+  // the worker uses — so we don't need @cloudflare/workers-types as a dep.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}
