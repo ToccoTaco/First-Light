@@ -23,46 +23,32 @@ reviews:
     name: "Preliminary Design Review (PDR)"
     milestone: true
     gate: review
-    dependsOn:
-      [
-        engines.prelim-design,
-        fluids.prelim-design,
-        structures.prelim-design,
-        avionics.prelim-design,
-      ]
+    dependsOn: [ engines.prelim-design, fluids.prelim-design, structures.prelim-design, avionics.prelim-design ]
 
   - id: review.cdr
     name: "Critical Design Review (CDR)"
     milestone: true
     gate: review
-    dependsOn:
-      [
-        review.pdr,
-        engines.detailed-design,
-        fluids.detailed-design,
-        structures.detailed-design,
-        avionics.detailed-design,
-      ]
+    dependsOn: [ review.pdr, engines.detailed-design, fluids.detailed-design, structures.detailed-design, avionics.detailed-design ]
 
   - id: review.mrr
     name: "Manufacturing Readiness Review (MRR)"
     milestone: true
     gate: review
     # ~5-day gap: turning the CDR package into a manufacturing plan.
-    dependsOn: [{ task: review.cdr, lag: 5 }]
+    dependsOn: [ { task: review.cdr, lag: 5 } ]
 
   - id: review.hfr
     name: "Hot-Fire Readiness Review (HFR)"
     milestone: true
     gate: review
-    dependsOn: [engines.chamber-ready, fluids.feed-ready, fluids.pressurization-ready]
+    dependsOn: [ engines.chamber-ready, fluids.feed-ready, fluids.pressurization-ready ]
 
   - id: review.frr
     name: "Flight Readiness Review (FRR)"
     milestone: true
     gate: review
-    dependsOn:
-      [gate.integrated-static-fire, structures.airframe-ready, avionics.flight-computer-ready]
+    dependsOn: [ gate.integrated-static-fire, structures.airframe-ready, avionics.flight-computer-ready ]
 
 gates:
   - id: gate.engine-hotfire
@@ -70,16 +56,19 @@ gates:
     milestone: true
     gate: test
     # ~3-day gap: standing up the hotfire after the readiness review clears.
-    dependsOn: [{ task: review.hfr, lag: 3 }]
+    dependsOn: [ { task: review.hfr, lag: 3 } ]
 
   - id: gate.integrated-static-fire
     name: "Integrated static fire"
     milestone: true
     gate: test
-    dependsOn: [gate.engine-hotfire, structures.tank-integration]
+    dependsOn: [ gate.engine-hotfire, structures.tank-integration ]
 
   - id: gate.first-flight
     name: "First flight"
     milestone: true
     gate: test
-    dependsOn: [review.frr]
+    dependsOn: [ review.frr ]
+    schedule:
+      mode: pinned
+      start: 2026-10-28
