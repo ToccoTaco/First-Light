@@ -12,5 +12,5 @@
 // behaves exactly as before (PAT-paste only). Neither value is a secret — the
 // client SECRET lives only in the worker, set via `wrangler secret put`.
 
-export const GITHUB_CLIENT_ID = "";
-export const AUTH_WORKER_URL = "";
+export const GITHUB_CLIENT_ID = "Ov23liV61dLbuYnQFNwN";
+export const AUTH_WORKER_URL = "https://first-light-auth.lptocco.workers.dev";

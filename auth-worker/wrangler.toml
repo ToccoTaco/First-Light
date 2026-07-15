@@ -8,7 +8,7 @@ compatibility_date = "2026-07-01"
 [vars]
 # The GitHub OAuth App's client id — PUBLIC (it also ships in the viewer's
 # ui/auth-config.ts). Replace after registering the OAuth App.
-GITHUB_CLIENT_ID = "REPLACE_WITH_OAUTH_APP_CLIENT_ID"
+GITHUB_CLIENT_ID = "Ov23liV61dLbuYnQFNwN"
 
 # Comma-separated browser origins allowed to call POST /exchange. Origins only —
 # scheme + host (+ port), no paths. Update and redeploy to change.
